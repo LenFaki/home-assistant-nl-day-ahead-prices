@@ -13,6 +13,9 @@ It is inspired by the sensor and ApexCharts attribute shape of `hass-entso-e`, b
 
 The default bidding zone is `NL`, currency is `EUR`, and all sensor prices are exposed as `EUR/kWh`. Provider prices in `EUR/MWh` are converted automatically.
 
+Release notes are available in [CHANGELOG.md](CHANGELOG.md) and on the GitHub
+releases page.
+
 ## Installation
 
 ### HACS
