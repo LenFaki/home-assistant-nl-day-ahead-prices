@@ -83,6 +83,11 @@ Formula:
 all_in = market_price + energy_tax_incl_vat + supplier_markup_excl_vat * (1 + vat)
 ```
 
+`Current Market Price` and `Next Hour Market Price` are bare market prices.
+They do not include taxes, VAT, or supplier markup. Use `Current All-in Price`
+and `Next Hour All-in Price` when you want the price including your configured
+tax and supplier settings.
+
 ### Supplier Tariffs
 
 Supplier-specific prices from providers such as Zonneplan, Tibber, ANWB, or
@@ -137,6 +142,7 @@ Sensors:
 - Time Of Lowest Price Today
 - Time Of Highest Price Today
 - Current All-in Price
+- Next Hour All-in Price
 - Current Provider
 - Last Successful Update
 

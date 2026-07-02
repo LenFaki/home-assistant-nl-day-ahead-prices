@@ -20,6 +20,20 @@ def test_all_in_formula() -> None:
     assert calculate_all_in_price(0.1, 0.1108, 0.01653, 0.21) == 0.2308013
 
 
+def test_next_hour_all_in_formula_example() -> None:
+    market_price = 0.001
+    energy_tax_incl_vat = 0.1108
+    supplier_markup_excl_vat = 0.0152
+    vat = 0.21
+
+    assert calculate_all_in_price(
+        market_price,
+        energy_tax_incl_vat,
+        supplier_markup_excl_vat,
+        vat,
+    ) == 0.130192
+
+
 def test_next_hour_price_uses_next_full_hour_entry() -> None:
     prices = [
         PriceEntry(datetime(2026, 7, 2, 10, tzinfo=timezone.utc), 0.10),

@@ -43,6 +43,7 @@
       "time_of_lowest_price_today": { "name": "Time Of Lowest Price Today" },
       "time_of_highest_price_today": { "name": "Time Of Highest Price Today" },
       "current_all_in_price": { "name": "Current All-in Price" },
+      "next_hour_all_in_price": { "name": "Next Hour All-in Price" },
       "current_provider": { "name": "Current Provider" },
       "last_successful_update": { "name": "Last Successful Update" }
     },
@@ -51,4 +52,3 @@
     }
   }
 }
-

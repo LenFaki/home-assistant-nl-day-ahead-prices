@@ -88,6 +88,17 @@ def _current_all_in(data: PriceData, now: datetime, entry: ConfigEntry) -> float
     market = current_price(data.result.prices, now)
     if market is None:
         return None
+    return _calculate_all_in(market, entry)
+
+
+def _next_hour_all_in(data: PriceData, now: datetime, entry: ConfigEntry) -> float | None:
+    market = next_hour_price(data.result.prices, now)
+    if market is None:
+        return None
+    return _calculate_all_in(market, entry)
+
+
+def _calculate_all_in(market: float, entry: ConfigEntry) -> float:
     options = entry.options
     return calculate_all_in_price(
         market,
@@ -173,6 +184,14 @@ SENSORS: tuple[NLPriceSensorDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         suggested_display_precision=4,
         value_fn=_current_all_in,
+    ),
+    NLPriceSensorDescription(
+        key="next_hour_all_in_price",
+        translation_key="next_hour_all_in_price",
+        native_unit_of_measurement=EUR_PER_KWH,
+        state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=4,
+        value_fn=_next_hour_all_in,
     ),
     NLPriceSensorDescription(key="current_provider", translation_key="current_provider", value_fn=_provider),
     NLPriceSensorDescription(
