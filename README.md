@@ -1,5 +1,7 @@
 # NL Day Ahead Prices
 
+![NL Day Ahead Prices logo](brand/logo.png)
+
 `home-assistant-nl-day-ahead-prices` is a HACS-compatible Home Assistant custom integration for Dutch day-ahead electricity prices.
 
 It is inspired by the sensor and ApexCharts attribute shape of `hass-entso-e`, but it avoids depending on ENTSO-E by default. Prices are fetched from alternative providers with automatic fallback:
@@ -133,4 +135,3 @@ Main differences:
 - The old template-based cost modifier is replaced by explicit all-in price options for Dutch tax, supplier markup, and VAT.
 
 After installing, update automations and ApexCharts cards to point at the new entity IDs while keeping the same `attributes.prices` data generator pattern.
-

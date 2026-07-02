@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">NL Day Ahead Prices icon</title>
+  <desc id="desc">A house-shaped electricity price mark with a Dutch red, white and blue palette.</desc>
+  <defs>
+    <linearGradient id="sky" x1="92" y1="60" x2="420" y2="452" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.54" stop-color="#f3f8ff"/>
+      <stop offset="1" stop-color="#dceeff"/>
+    </linearGradient>
+    <linearGradient id="blue" x1="120" y1="162" x2="384" y2="404" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1e88e5"/>
+      <stop offset="1" stop-color="#005eb8"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="#0b2e55" flood-opacity="0.22"/>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="#ffffff"/>
+  <rect x="44" y="44" width="424" height="424" rx="96" fill="url(#sky)" stroke="#d7e8f8" stroke-width="8"/>
+  <g filter="url(#shadow)">
+    <path d="M111 240 256 118l145 122v172a24 24 0 0 1-24 24H135a24 24 0 0 1-24-24V240Z" fill="url(#blue)"/>
+    <path d="M256 118 111 240h290L256 118Z" fill="#ef3340"/>
+    <path d="M150 245h212v50H150z" fill="#ffffff" opacity="0.94"/>
+    <path d="M152 330c31 0 31-34 62-34s31 34 62 34 31-34 62-34 31 34 62 34" fill="none" stroke="#ffffff" stroke-width="22" stroke-linecap="round"/>
+    <path d="M214 408h84v-94h-84v94Z" fill="#ffffff" opacity="0.97"/>
+    <path d="M244 238h38l-30 56h42l-66 96 18-70h-35l33-82Z" fill="#f9d423"/>
+  </g>
+</svg>
