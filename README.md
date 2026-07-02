@@ -23,6 +23,11 @@ The default bidding zone is `NL`, currency is `EUR`, and all sensor prices are e
 4. Restart Home Assistant.
 5. Add the integration from **Settings > Devices & services**.
 
+Important: the HACS `update.nl_day_ahead_prices_update` entity only belongs to
+HACS itself. It confirms that the custom repository is installed and can be
+updated. The actual price sensors are only created after you add **NL Day Ahead
+Prices** from **Settings > Devices & services > Add integration**.
+
 ### Manual
 
 Copy `custom_components/nl_day_ahead_prices` into your Home Assistant `custom_components` directory and restart Home Assistant.
@@ -37,6 +42,27 @@ The config flow defaults to:
 - ENTSO-E fallback: disabled
 
 The integration uses Home Assistant's shared `aiohttp` websession, modern async config entries, options flow, and a `DataUpdateCoordinator`. API failures do not block startup as long as cached prices are available.
+
+## Troubleshooting
+
+### I only see `update.nl_day_ahead_prices_update`
+
+That entity is created by HACS, not by this integration. Complete the Home
+Assistant setup flow:
+
+1. Restart Home Assistant after installing or updating from HACS.
+2. Go to **Settings > Devices & services**.
+3. Select **Add integration**.
+4. Search for **NL Day Ahead Prices**.
+5. Finish the setup form with the default `NL` zone.
+
+After that, the integration should create sensors such as
+`sensor.nl_day_ahead_prices_current_market_price` and
+`binary_sensor.nl_day_ahead_prices_tomorrow_prices_available`.
+
+If **NL Day Ahead Prices** is not listed in **Add integration**, Home Assistant
+has not loaded the custom component yet. Restart Home Assistant and check
+**Settings > System > Logs** for `nl_day_ahead_prices`.
 
 ## Options
 
