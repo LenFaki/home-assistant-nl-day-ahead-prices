@@ -81,6 +81,12 @@ enter your own values.
 - `selected_supplier`: default `Zonneplan`
 - `energy_tax`: default `0.1108` EUR/kWh, including VAT
 - `vat`: default `0.21`
+
+When you select a built-in supplier, the next screen shows the profile values
+that will be used for the all-in calculation: purchase fee, monthly fee,
+verification date, and source URL. When you select **Custom supplier**, the next
+screen shows the custom tariff fields:
+
 - `custom_supplier_name`
 - `custom_monthly_fee_electricity`
 - `custom_purchase_fee_electricity`

@@ -19,6 +19,7 @@
     "step": {
       "init": {
         "title": "NL Day Ahead Prices opties",
+        "description": "Kies je provider, belastinginstellingen en leverancier. De velden voor eigen tarieven verschijnen alleen in de volgende stap wanneer Eigen leverancier is gekozen.",
         "data": {
           "country": "Land / biedzone",
           "currency": "Valuta",
@@ -29,7 +30,17 @@
           "energy_tax": "Energiebelasting per kWh",
           "energy_tax_incl_vat": "Energiebelasting inclusief btw",
           "supplier_markup_excl_vat": "Leveranciersopslag exclusief btw",
-          "vat": "BTW",
+          "vat": "BTW"
+        }
+      },
+      "supplier_summary": {
+        "title": "Leveranciersprofiel",
+        "description": "Gekozen leverancier: {supplier}\n\nInkoopvergoeding: {purchase_fee} ({purchase_fee_vat})\nVaste leveringskosten stroom: {monthly_fee}\nLaatst gecontroleerd: {last_verified}\nBron: {source_url}\n\nLeverancierstarieven kunnen wijzigen en per contract verschillen. Controleer je actuele tariefblad voordat je op deze waarden vertrouwt."
+      },
+      "custom_supplier": {
+        "title": "Eigen leverancier",
+        "description": "Vul je eigen leverancierstarieven in. Bedragen worden als inclusief btw behandeld wanneer het bijbehorende vinkje aan staat.",
+        "data": {
           "custom_supplier_name": "Eigen leverancier",
           "custom_monthly_fee_electricity": "Vaste leveringskosten stroom per maand",
           "custom_purchase_fee_electricity": "Inkoopvergoeding stroom",
@@ -41,7 +52,8 @@
     },
     "error": {
       "invalid_vat": "BTW moet tussen 0 en 1 liggen",
-      "negative_value": "Deze waarde mag niet negatief zijn"
+      "negative_value": "Deze waarde mag niet negatief zijn",
+      "supplier_profile_unavailable": "Het gekozen leveranciersprofiel is niet beschikbaar"
     }
   },
   "entity": {

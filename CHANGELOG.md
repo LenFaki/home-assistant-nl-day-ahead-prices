@@ -2,6 +2,17 @@
 
 All notable changes to **NL Day Ahead Prices** are documented here.
 
+## v1.2.2 - 2026-07-02
+
+### Changed
+
+- Improved the options flow for supplier profiles.
+- The first options step now shows only provider, tax, VAT, and supplier
+  selection.
+- Built-in suppliers now show a confirmation screen with purchase fee, monthly
+  fee, verification date, and source URL.
+- Custom supplier fee fields are only shown when Custom supplier is selected.
+
 ## v1.2.0 - 2026-07-02
 
 ### Added

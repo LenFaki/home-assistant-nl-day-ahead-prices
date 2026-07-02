@@ -19,6 +19,7 @@
     "step": {
       "init": {
         "title": "NL Day Ahead Prices options",
+        "description": "Choose your provider, tax settings, and supplier profile. Custom supplier details are shown in the next step only when Custom supplier is selected.",
         "data": {
           "country": "Country / bidding zone",
           "currency": "Currency",
@@ -29,7 +30,17 @@
           "energy_tax": "Energy tax per kWh",
           "energy_tax_incl_vat": "Energy tax including VAT",
           "supplier_markup_excl_vat": "Supplier markup excluding VAT",
-          "vat": "VAT",
+          "vat": "VAT"
+        }
+      },
+      "supplier_summary": {
+        "title": "Supplier profile",
+        "description": "Selected supplier: {supplier}\n\nPurchase fee: {purchase_fee} ({purchase_fee_vat})\nMonthly electricity fee: {monthly_fee}\nLast verified: {last_verified}\nSource: {source_url}\n\nSupplier tariffs can change and may differ per contract. Check your current tariff sheet before relying on these values."
+      },
+      "custom_supplier": {
+        "title": "Custom supplier",
+        "description": "Enter your own supplier fees. Amounts are treated as including VAT when the corresponding checkbox is enabled.",
+        "data": {
           "custom_supplier_name": "Custom supplier",
           "custom_monthly_fee_electricity": "Monthly electricity fee",
           "custom_purchase_fee_electricity": "Electricity purchase fee",
@@ -41,7 +52,8 @@
     },
     "error": {
       "invalid_vat": "VAT must be between 0 and 1",
-      "negative_value": "This value cannot be negative"
+      "negative_value": "This value cannot be negative",
+      "supplier_profile_unavailable": "The selected supplier profile is unavailable"
     }
   },
   "entity": {
