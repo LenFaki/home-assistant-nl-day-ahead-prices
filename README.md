@@ -217,6 +217,45 @@ Sensors:
 Binary sensor:
 
 - Tomorrow Prices Available
+- API/Data Available
+- Best Price Period (disabled by default)
+- Peak Price Period (disabled by default)
+
+### Energy Optimization Toolkit
+
+Advanced analysis entities are disabled by default. Enable only the entities
+you need from the integration's device page.
+
+- All-in forecasts for the next 1, 2, 3, 4, 6, 8, 12, and 24 hours.
+- Trend values from `strongly_falling` through `strongly_rising`, including
+  `trend_value_percent` and the next trend change.
+- Three-level (`low`, `normal`, `high`) and five-level price ratings.
+- Volatility for today, tomorrow, and the next 24 hours with min, max, average,
+  median, span, and percentage attributes.
+- Best and peak period start, end, remaining time, progress, and next start.
+
+The calculations work from actual timestamps and therefore support hourly,
+quarter-hour, and 23/25-hour daylight-saving days without fixed interval
+counts. The toolkit was independently implemented, with
+[hass.tibber_prices](https://github.com/jpawlowski/hass.tibber_prices) credited
+as product inspiration.
+
+### Runtime Settings
+
+The device page contains `number` controls for best/peak duration, flexibility,
+minimum gap, and trend thresholds. Switches control period relaxation,
+extended attributes, and chart helpers. Changes apply immediately without a
+Home Assistant restart.
+
+### Services
+
+`nl_day_ahead_prices.export_chart_data` returns `{time, price}` data for market
+or all-in prices. It supports today/tomorrow selection, automatic/hourly/
+quarter-hour resolution, and optional best/peak period output.
+
+`nl_day_ahead_prices.generate_apexcharts_config` returns a YAML string with
+market, all-in, cheapest-period, and peak-period series. Call response services
+from Developer Tools using the UI's response-data option.
 
 ## Attributes
 
@@ -240,6 +279,20 @@ Each price sensor exposes ApexCharts-friendly attributes:
 - `provider`
 - `fallback_used`
 - `last_successful_update`
+- `cache_used`
+- `cache_age_minutes`
+- `data_completeness`
+- `current_interval_start`
+- `current_interval_end`
+- `next_interval_start`
+- `market_price`
+- `all_in_price`
+- `rating_3_level`
+- `rating_5_level`
+- `trend`
+- `trend_value_percent`
+- `volatility`
+- `day_min`, `day_max`, `day_average`, `day_median`
 - `selected_supplier`
 - `supplier_purchase_fee`
 - `supplier_monthly_fee`
@@ -300,8 +353,54 @@ For today only:
 data_generator: |
   return entity.attributes.prices_today.map((entry) => {
     return [new Date(entry.time), entry.price];
-  });
+      });
 ```
+
+## Automation Examples
+
+Run a boiler only during a selected best period:
+
+```yaml
+automation:
+  - alias: Boiler during best price period
+    triggers:
+      - trigger: state
+        entity_id: binary_sensor.nl_day_ahead_prices_best_price_period
+        to: "on"
+    actions:
+      - action: switch.turn_on
+        target:
+          entity_id: switch.boiler
+  - alias: Boiler off after best price period
+    triggers:
+      - trigger: state
+        entity_id: binary_sensor.nl_day_ahead_prices_best_price_period
+        to: "off"
+    actions:
+      - action: switch.turn_off
+        target:
+          entity_id: switch.boiler
+```
+
+Start a washing machine at the cheapest two-hour block by setting **Best Period
+Duration** to `120` minutes and triggering on **Best Price Period**. For an
+expensive-period notification:
+
+```yaml
+automation:
+  - alias: Peak price warning
+    triggers:
+      - trigger: state
+        entity_id: binary_sensor.nl_day_ahead_prices_peak_price_period
+        to: "on"
+    actions:
+      - action: notify.notify
+        data:
+          message: "The peak electricity price period has started."
+```
+
+The ApexCharts example above can show both market and all-in price by adding a
+second series using `all_in_prices_today` and `all_in_prices_tomorrow`.
 
 ## Migration From hass-entso-e
 

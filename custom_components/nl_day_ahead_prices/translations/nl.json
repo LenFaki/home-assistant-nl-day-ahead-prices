@@ -86,10 +86,54 @@
       "selected_supplier": { "name": "Gekozen Leverancier" },
       "effective_price_resolution": { "name": "Effectief Prijsinterval" },
       "current_provider": { "name": "Huidige Provider" },
-      "last_successful_update": { "name": "Laatste Succesvolle Update" }
+      "last_successful_update": { "name": "Laatste Succesvolle Update" },
+      "next_1_hour_average_price": { "name": "Gemiddelde Prijs Komend Uur" },
+      "next_2_hour_average_price": { "name": "Gemiddelde Prijs Komende 2 Uur" },
+      "next_3_hour_average_price": { "name": "Gemiddelde Prijs Komende 3 Uur" },
+      "next_4_hour_average_price": { "name": "Gemiddelde Prijs Komende 4 Uur" },
+      "next_6_hour_average_price": { "name": "Gemiddelde Prijs Komende 6 Uur" },
+      "next_8_hour_average_price": { "name": "Gemiddelde Prijs Komende 8 Uur" },
+      "next_12_hour_average_price": { "name": "Gemiddelde Prijs Komende 12 Uur" },
+      "next_24_hour_average_price": { "name": "Gemiddelde Prijs Komende 24 Uur" },
+      "current_price_trend": { "name": "Huidige Prijstrend" },
+      "next_trend_change_time": { "name": "Volgende Trendwijziging" },
+      "price_trajectory": { "name": "Prijsverloop" },
+      "price_rating": { "name": "Prijsbeoordeling" },
+      "price_level": { "name": "Prijsniveau" },
+      "volatility_today": { "name": "Volatiliteit Vandaag" },
+      "volatility_tomorrow": { "name": "Volatiliteit Morgen" },
+      "volatility_next_24h": { "name": "Volatiliteit Komende 24 Uur" },
+      "best_price_period_start": { "name": "Start Beste Prijsperiode" },
+      "best_price_period_end": { "name": "Einde Beste Prijsperiode" },
+      "best_price_period_remaining_minutes": { "name": "Resterende Minuten Beste Prijsperiode" },
+      "best_price_period_progress_percent": { "name": "Voortgang Beste Prijsperiode" },
+      "next_best_price_period_start": { "name": "Start Volgende Beste Prijsperiode" },
+      "peak_price_period_start": { "name": "Start Piekprijsperiode" },
+      "peak_price_period_end": { "name": "Einde Piekprijsperiode" },
+      "peak_price_period_remaining_minutes": { "name": "Resterende Minuten Piekprijsperiode" },
+      "peak_price_period_progress_percent": { "name": "Voortgang Piekprijsperiode" },
+      "next_peak_price_period_start": { "name": "Start Volgende Piekprijsperiode" }
     },
     "binary_sensor": {
-      "tomorrow_prices_available": { "name": "Prijzen Morgen Beschikbaar" }
+      "tomorrow_prices_available": { "name": "Prijzen Morgen Beschikbaar" },
+      "api_data_available": { "name": "API/Data Beschikbaar" },
+      "best_price_period": { "name": "Beste Prijsperiode" },
+      "peak_price_period": { "name": "Piekprijsperiode" }
+    },
+    "number": {
+      "best_period_duration_minutes": { "name": "Duur Beste Prijsperiode" },
+      "peak_period_duration_minutes": { "name": "Duur Piekprijsperiode" },
+      "best_period_flex_percent": { "name": "Flexibiliteit Beste Prijsperiode" },
+      "peak_period_flex_percent": { "name": "Flexibiliteit Piekprijsperiode" },
+      "minimum_gap_minutes": { "name": "Minimale Tussenruimte" },
+      "stable_threshold_percent": { "name": "Drempel Stabiele Trend" },
+      "strong_threshold_percent": { "name": "Drempel Sterke Trend" }
+    },
+    "switch": {
+      "allow_best_period_relaxation": { "name": "Versoepeling Beste Prijsperiode" },
+      "allow_peak_period_relaxation": { "name": "Versoepeling Piekprijsperiode" },
+      "enable_extended_attributes": { "name": "Uitgebreide Attributen" },
+      "enable_chart_helper_entities": { "name": "Grafiekhelpers" }
     }
   }
 }

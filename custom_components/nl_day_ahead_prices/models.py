@@ -65,6 +65,8 @@ class PriceData:
     last_successful_update: datetime | None
     from_cache: bool = False
     errors: dict[str, str] = field(default_factory=dict)
+    cache_age_minutes: float | None = None
+    data_completeness: str = "unknown"
 
 
 def convert_to_eur_kwh(value: float, unit: str) -> float:

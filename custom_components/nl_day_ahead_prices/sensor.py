@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorEntityDescription, SensorStateClass
@@ -16,6 +16,11 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
+from .analysis.forecast import average_next_period
+from .analysis.periods import active_and_next, find_price_periods
+from .analysis.rating import price_ratings
+from .analysis.trend import trend_for_prices
+from .analysis.volatility import volatility
 from .calculations import (
     build_all_in_price_attributes,
     calculate_all_in_price,
@@ -23,6 +28,10 @@ from .calculations import (
     calculate_supplier_fee,
 )
 from .const import (
+    CONF_ALLOW_BEST_RELAXATION,
+    CONF_ALLOW_PEAK_RELAXATION,
+    CONF_BEST_PERIOD_DURATION,
+    CONF_BEST_PERIOD_FLEX,
     CONF_CUSTOM_MONTHLY_FEE_ELECTRICITY,
     CONF_CUSTOM_PURCHASE_FEE_ELECTRICITY,
     CONF_CUSTOM_PURCHASE_FEE_INCLUDES_VAT,
@@ -31,7 +40,13 @@ from .const import (
     CONF_CUSTOM_SUPPLIER_NAME,
     CONF_ENERGY_TAX,
     CONF_ENERGY_TAX_INCL_VAT,
+    CONF_EXTENDED_ATTRIBUTES,
+    CONF_MINIMUM_GAP,
+    CONF_PEAK_PERIOD_DURATION,
+    CONF_PEAK_PERIOD_FLEX,
     CONF_SELECTED_SUPPLIER,
+    CONF_STABLE_TREND_THRESHOLD,
+    CONF_STRONG_TREND_THRESHOLD,
     CONF_SUPPLIER_MARKUP_EXCL_VAT,
     CONF_VAT,
     DEFAULT_CUSTOM_MONTHLY_FEE_ELECTRICITY,
@@ -71,6 +86,7 @@ class NLPriceSensorDescription(SensorEntityDescription):
     """Price sensor description."""
 
     value_fn: Callable[[PriceData, datetime, ConfigEntry], Any]
+    analysis_key: str | None = None
 
 
 def _current_market(data: PriceData, now: datetime, entry: ConfigEntry) -> float | None:
@@ -230,6 +246,96 @@ def _last_successful(data: PriceData, now: datetime, entry: ConfigEntry) -> date
     return data.last_successful_update
 
 
+def _all_in_entries(data: PriceData, entry: ConfigEntry) -> list:
+    return [
+        type(item)(item.time, _calculate_all_in(item.price, entry))
+        for item in data.result.prices
+    ]
+
+
+def _analysis_value(key: str, data: PriceData, now: datetime, entry: ConfigEntry, runtime: dict[str, Any]) -> Any:
+    prices = _all_in_entries(data, entry)
+    if key.startswith("forecast_"):
+        return average_next_period(prices, now, int(key.removeprefix("forecast_")))
+    trend = trend_for_prices(
+        prices,
+        now,
+        float(runtime[CONF_STABLE_TREND_THRESHOLD]),
+        float(runtime[CONF_STRONG_TREND_THRESHOLD]),
+    )
+    if key == "trend":
+        return trend["trend"]
+    if key == "trend_change":
+        return trend["next_change_time"]
+    if key == "trajectory":
+        return trend["trajectory"]
+    current = current_price(prices, now)
+    ratings = price_ratings(current, prices)
+    if key == "rating_3":
+        return ratings[0]
+    if key == "rating_5":
+        return ratings[1]
+    if key.startswith("volatility_"):
+        if key == "volatility_today":
+            selected = [item for item in prices if item in prices[: len(data.result.prices_today)]]
+        elif key == "volatility_tomorrow":
+            selected = prices[len(data.result.prices_today) :]
+        else:
+            selected = [item for item in prices if now <= item.time < now + timedelta(hours=24)]
+        return volatility(selected)["level"]
+    period_type, field = key.split(":", 1)
+    periods = _periods(data, entry, runtime, peak=period_type == "peak")
+    active, upcoming = active_and_next(periods, now)
+    period = upcoming if field == "next_start" else active
+    if field == "start":
+        return period.start if period else None
+    if field == "end":
+        return period.end if period else None
+    if field == "next_start":
+        return period.start if period else None
+    if field == "remaining":
+        return max(0, round((period.end - now).total_seconds() / 60)) if period else 0
+    if field == "progress":
+        if period is None:
+            return 0
+        return round((now - period.start).total_seconds() / (period.end - period.start).total_seconds() * 100, 1)
+    return None
+
+
+def _periods(data: PriceData, entry: ConfigEntry, runtime: dict[str, Any], *, peak: bool):
+    duration_key = CONF_PEAK_PERIOD_DURATION if peak else CONF_BEST_PERIOD_DURATION
+    flex_key = CONF_PEAK_PERIOD_FLEX if peak else CONF_BEST_PERIOD_FLEX
+    relaxation_key = CONF_ALLOW_PEAK_RELAXATION if peak else CONF_ALLOW_BEST_RELAXATION
+    return find_price_periods(
+        _all_in_entries(data, entry),
+        int(runtime[duration_key]),
+        peak=peak,
+        flex_percent=float(runtime[flex_key]),
+        minimum_gap_minutes=int(runtime[CONF_MINIMUM_GAP]),
+        allow_relaxation=bool(runtime[relaxation_key]),
+    )
+
+
+def _advanced_sensor(
+    key: str,
+    *,
+    analysis_key: str | None = None,
+    unit: str | None = None,
+    timestamp: bool = False,
+) -> NLPriceSensorDescription:
+    return NLPriceSensorDescription(
+        key=key,
+        translation_key=key,
+        native_unit_of_measurement=unit,
+        device_class=SensorDeviceClass.TIMESTAMP if timestamp else None,
+        state_class=SensorStateClass.MEASUREMENT if unit and unit != "%" and unit != "min" else None,
+        suggested_display_precision=4 if unit == EUR_PER_KWH else None,
+        entity_registry_enabled_default=False,
+        value_fn=lambda data, now, entry: None,
+        analysis_key=analysis_key or key,
+    )
+
+
 SENSORS: tuple[NLPriceSensorDescription, ...] = (
     NLPriceSensorDescription(
         key="current_market_price",
@@ -376,6 +482,32 @@ SENSORS: tuple[NLPriceSensorDescription, ...] = (
         device_class=SensorDeviceClass.TIMESTAMP,
         value_fn=_last_successful,
     ),
+    *tuple(
+        _advanced_sensor(
+            f"next_{hours}_hour_average_price",
+            analysis_key=f"forecast_{hours}",
+            unit=EUR_PER_KWH,
+        )
+        for hours in (1, 2, 3, 4, 6, 8, 12, 24)
+    ),
+    _advanced_sensor("current_price_trend", analysis_key="trend"),
+    _advanced_sensor("next_trend_change_time", analysis_key="trend_change", timestamp=True),
+    _advanced_sensor("price_trajectory", analysis_key="trajectory"),
+    _advanced_sensor("price_rating", analysis_key="rating_3"),
+    _advanced_sensor("price_level", analysis_key="rating_5"),
+    _advanced_sensor("volatility_today"),
+    _advanced_sensor("volatility_tomorrow"),
+    _advanced_sensor("volatility_next_24h"),
+    _advanced_sensor("best_price_period_start", analysis_key="best:start", timestamp=True),
+    _advanced_sensor("best_price_period_end", analysis_key="best:end", timestamp=True),
+    _advanced_sensor("best_price_period_remaining_minutes", analysis_key="best:remaining", unit="min"),
+    _advanced_sensor("best_price_period_progress_percent", analysis_key="best:progress", unit="%"),
+    _advanced_sensor("next_best_price_period_start", analysis_key="best:next_start", timestamp=True),
+    _advanced_sensor("peak_price_period_start", analysis_key="peak:start", timestamp=True),
+    _advanced_sensor("peak_price_period_end", analysis_key="peak:end", timestamp=True),
+    _advanced_sensor("peak_price_period_remaining_minutes", analysis_key="peak:remaining", unit="min"),
+    _advanced_sensor("peak_price_period_progress_percent", analysis_key="peak:progress", unit="%"),
+    _advanced_sensor("next_peak_price_period_start", analysis_key="peak:next_start", timestamp=True),
 )
 
 
@@ -418,7 +550,16 @@ class NLDayAheadPriceSensor(CoordinatorEntity[NLDayAheadPricesCoordinator], Sens
         """Return sensor value."""
         if self.coordinator.data is None:
             return None
-        value = self.entity_description.value_fn(self.coordinator.data, dt_util.now(), self.entry)
+        if self.entity_description.analysis_key:
+            value = _analysis_value(
+                self.entity_description.analysis_key,
+                self.coordinator.data,
+                dt_util.now(),
+                self.entry,
+                self.coordinator.runtime_options,
+            )
+        else:
+            value = self.entity_description.value_fn(self.coordinator.data, dt_util.now(), self.entry)
         return round(value, 6) if isinstance(value, float) else value
 
     @property
@@ -429,7 +570,29 @@ class NLDayAheadPriceSensor(CoordinatorEntity[NLDayAheadPricesCoordinator], Sens
             return {}
         supplier_profile = _selected_supplier_profile(self.entry)
         cheapest_blocks = _cheapest_block_attributes(data)
-        return {
+        now = dt_util.now()
+        prices = data.result.prices
+        current_index = next(
+            (index for index, item in enumerate(prices) if item.time <= now and (index + 1 == len(prices) or now < prices[index + 1].time)),
+            None,
+        )
+        current_entry = prices[current_index] if current_index is not None else None
+        next_entry = prices[current_index + 1] if current_index is not None and current_index + 1 < len(prices) else None
+        all_in_entries = _all_in_entries(data, self.entry)
+        current_all_in = current_price(all_in_entries, now)
+        rating_3, rating_5 = price_ratings(current_all_in, all_in_entries)
+        trend = trend_for_prices(
+            all_in_entries,
+            now,
+            float(self.coordinator.runtime_options[CONF_STABLE_TREND_THRESHOLD]),
+            float(self.coordinator.runtime_options[CONF_STRONG_TREND_THRESHOLD]),
+        )
+        day_stats = volatility(
+            all_in_entries[: len(data.result.prices_today)]
+        )
+        best_periods = _periods(data, self.entry, self.coordinator.runtime_options, peak=False)
+        peak_periods = _periods(data, self.entry, self.coordinator.runtime_options, peak=True)
+        base = {
             "prices": [entry.as_attribute() for entry in data.result.prices],
             "prices_today": [entry.as_attribute() for entry in data.result.prices_today],
             "prices_tomorrow": [entry.as_attribute() for entry in data.result.prices_tomorrow],
@@ -452,6 +615,9 @@ class NLDayAheadPriceSensor(CoordinatorEntity[NLDayAheadPricesCoordinator], Sens
             "provider": data.result.provider,
             "provider_name": PROVIDER_NAMES.get(data.result.provider, data.result.provider),
             "fallback_used": data.fallback_used,
+            "cache_used": data.from_cache,
+            "cache_age_minutes": round(data.cache_age_minutes, 1) if data.cache_age_minutes is not None else None,
+            "data_completeness": data.data_completeness,
             "last_successful_update": data.last_successful_update.isoformat()
             if data.last_successful_update
             else None,
@@ -465,7 +631,44 @@ class NLDayAheadPriceSensor(CoordinatorEntity[NLDayAheadPricesCoordinator], Sens
             "supplier_profile_source_url": supplier_profile.source_url,
             "supplier_profile": supplier_profile_to_dict(supplier_profile),
             **cheapest_blocks,
+            "current_interval_start": current_entry.time.isoformat() if current_entry else None,
+            "current_interval_end": next_entry.time.isoformat() if next_entry else None,
+            "next_interval_start": next_entry.time.isoformat() if next_entry else None,
+            "source_provider": data.result.provider,
+            "market_price": current_entry.price if current_entry else None,
+            "all_in_price": current_all_in,
+            "supplier_fee": round(calculate_supplier_fee(supplier_profile, _vat(self.entry)), 6),
+            "rating_3_level": rating_3,
+            "rating_5_level": rating_5,
+            "trend": trend["trend"],
+            "trend_value_percent": trend["trend_value_percent"],
+            "volatility": day_stats.get("level"),
+            "day_min": day_stats.get("min_price"),
+            "day_max": day_stats.get("max_price"),
+            "day_average": day_stats.get("average_price"),
+            "day_median": day_stats.get("median_price"),
+            "best_periods": [period.as_dict() for period in best_periods],
+            "peak_periods": [period.as_dict() for period in peak_periods],
         }
+        if not self.coordinator.runtime_options[CONF_EXTENDED_ATTRIBUTES]:
+            return {
+                key: base[key]
+                for key in (
+                    "provider",
+                    "fallback_used",
+                    "last_successful_update",
+                    "price_resolution",
+                    "selected_supplier",
+                )
+            }
+        if self.entity_description.analysis_key and self.entity_description.analysis_key.startswith("volatility_"):
+            if self.entity_description.analysis_key == "volatility_today":
+                base.update(volatility(all_in_entries[: len(data.result.prices_today)]))
+            elif self.entity_description.analysis_key == "volatility_tomorrow":
+                base.update(volatility(all_in_entries[len(data.result.prices_today) :]))
+            else:
+                base.update(volatility([item for item in all_in_entries if now <= item.time < now + timedelta(hours=24)]))
+        return base
 
 
 def _cheapest_block_attributes(data: PriceData) -> dict[str, Any]:

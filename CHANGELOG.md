@@ -2,6 +2,29 @@
 
 All notable changes to **NL Day Ahead Prices** are documented here.
 
+## v1.4.0 - 2026-07-09
+
+### Added
+
+- Added all-in forecasts for the next 1, 2, 3, 4, 6, 8, 12, and 24 hours.
+- Added trend, trajectory, three-level rating, five-level rating, and
+  volatility analysis.
+- Added configurable best and peak price periods, timing sensors, and binary
+  sensors.
+- Added live `number` and `switch` controls that apply without a restart.
+- Added `export_chart_data` and `generate_apexcharts_config` response services.
+- Added exact hour and quarter-hour boundary state updates without extra API
+  polling.
+- Added Home Assistant diagnostics and richer price attributes.
+- Added analysis tests for hourly, quarter-hour, cache, and 23/25-hour DST days.
+
+### Changed
+
+- Persistent cache data now expires at the local date boundary and is rejected
+  when today's prices are missing.
+- Advanced analysis entities are disabled by default to keep the entity
+  registry tidy.
+
 ## v1.3.0 - 2026-07-03
 
 ### Added

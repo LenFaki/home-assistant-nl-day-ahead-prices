@@ -1,6 +1,6 @@
 [project]
 name = "home-assistant-nl-day-ahead-prices"
-version = "0.1.0"
+version = "1.4.0"
 description = "HACS-compatible Home Assistant integration for Dutch day-ahead electricity prices"
 requires-python = ">=3.12"
 

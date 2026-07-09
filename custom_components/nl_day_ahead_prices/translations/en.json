@@ -86,10 +86,54 @@
       "selected_supplier": { "name": "Selected Supplier" },
       "effective_price_resolution": { "name": "Effective Price Resolution" },
       "current_provider": { "name": "Current Provider" },
-      "last_successful_update": { "name": "Last Successful Update" }
+      "last_successful_update": { "name": "Last Successful Update" },
+      "next_1_hour_average_price": { "name": "Next 1 Hour Average Price" },
+      "next_2_hour_average_price": { "name": "Next 2 Hours Average Price" },
+      "next_3_hour_average_price": { "name": "Next 3 Hours Average Price" },
+      "next_4_hour_average_price": { "name": "Next 4 Hours Average Price" },
+      "next_6_hour_average_price": { "name": "Next 6 Hours Average Price" },
+      "next_8_hour_average_price": { "name": "Next 8 Hours Average Price" },
+      "next_12_hour_average_price": { "name": "Next 12 Hours Average Price" },
+      "next_24_hour_average_price": { "name": "Next 24 Hours Average Price" },
+      "current_price_trend": { "name": "Current Price Trend" },
+      "next_trend_change_time": { "name": "Next Trend Change Time" },
+      "price_trajectory": { "name": "Price Trajectory" },
+      "price_rating": { "name": "Price Rating" },
+      "price_level": { "name": "Price Level" },
+      "volatility_today": { "name": "Volatility Today" },
+      "volatility_tomorrow": { "name": "Volatility Tomorrow" },
+      "volatility_next_24h": { "name": "Volatility Next 24h" },
+      "best_price_period_start": { "name": "Best Price Period Start" },
+      "best_price_period_end": { "name": "Best Price Period End" },
+      "best_price_period_remaining_minutes": { "name": "Best Price Period Remaining Minutes" },
+      "best_price_period_progress_percent": { "name": "Best Price Period Progress Percent" },
+      "next_best_price_period_start": { "name": "Next Best Price Period Start" },
+      "peak_price_period_start": { "name": "Peak Price Period Start" },
+      "peak_price_period_end": { "name": "Peak Price Period End" },
+      "peak_price_period_remaining_minutes": { "name": "Peak Price Period Remaining Minutes" },
+      "peak_price_period_progress_percent": { "name": "Peak Price Period Progress Percent" },
+      "next_peak_price_period_start": { "name": "Next Peak Price Period Start" }
     },
     "binary_sensor": {
-      "tomorrow_prices_available": { "name": "Tomorrow Prices Available" }
+      "tomorrow_prices_available": { "name": "Tomorrow Prices Available" },
+      "api_data_available": { "name": "API/Data Available" },
+      "best_price_period": { "name": "Best Price Period" },
+      "peak_price_period": { "name": "Peak Price Period" }
+    },
+    "number": {
+      "best_period_duration_minutes": { "name": "Best Period Duration" },
+      "peak_period_duration_minutes": { "name": "Peak Period Duration" },
+      "best_period_flex_percent": { "name": "Best Period Flex" },
+      "peak_period_flex_percent": { "name": "Peak Period Flex" },
+      "minimum_gap_minutes": { "name": "Minimum Gap" },
+      "stable_threshold_percent": { "name": "Stable Trend Threshold" },
+      "strong_threshold_percent": { "name": "Strong Trend Threshold" }
+    },
+    "switch": {
+      "allow_best_period_relaxation": { "name": "Enable Best Period Relaxation" },
+      "allow_peak_period_relaxation": { "name": "Enable Peak Period Relaxation" },
+      "enable_extended_attributes": { "name": "Enable Extended Attributes" },
+      "enable_chart_helper_entities": { "name": "Enable Chart Helper Entities" }
     }
   }
 }

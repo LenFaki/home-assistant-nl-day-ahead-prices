@@ -1,0 +1,23 @@
+export_chart_data:
+  name: Export chart data
+  description: Export market or all-in prices for ApexCharts.
+  fields:
+    include_today:
+      selector: {boolean: {}}
+    include_tomorrow:
+      selector: {boolean: {}}
+    price_type:
+      selector:
+        select:
+          options: [market, all_in]
+    resolution:
+      selector:
+        select:
+          options: [auto, hourly, quarter_hour]
+    include_best_periods:
+      selector: {boolean: {}}
+    include_peak_periods:
+      selector: {boolean: {}}
+generate_apexcharts_config:
+  name: Generate ApexCharts configuration
+  description: Return a ready-to-edit ApexCharts YAML configuration.
