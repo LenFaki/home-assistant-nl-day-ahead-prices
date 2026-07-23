@@ -286,8 +286,8 @@ inside Python. Each profile stores:
 - `source_url`
 
 Bundled profiles currently include Zonneplan, Tibber, ANWB Energie,
-EasyEnergy, Eneco, Vandebron, Vattenfall, Greenchoice, EnergyZero, SamSam, and
-Custom supplier.
+EasyEnergy, Eneco, Vandebron, Vattenfall, Greenchoice, EnergyZero, SamSam,
+Pure Energie, and Custom supplier.
 
 Tariffs can change and may differ per contract. Always check your current
 supplier contract or tariff sheet. The bundled `last_verified` and `source_url`

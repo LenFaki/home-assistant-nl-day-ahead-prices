@@ -2,6 +2,13 @@
 
 All notable changes to **EnerPrice** are documented here.
 
+## Unreleased
+
+### Added
+
+- Added the Pure Energie supplier profile. Thanks to Henk van Donge for the
+  contribution.
+
 ## v2.0.0 - EnerPrice branding
 
 ### Added
