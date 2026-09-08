@@ -14,7 +14,7 @@ from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
-from .cache import cache_is_valid
+from .cache import cache_is_valid, get_cached_prices_for_date
 from .const import (
     CACHE_VERSION,
     CONF_COUNTRY,
@@ -35,7 +35,6 @@ from .const import (
     PROVIDER_ENTSOE,
     PROVIDER_NORD_POOL,
     RUNTIME_DEFAULTS,
-    UPDATE_INTERVAL,
 )
 from .models import PriceData, PriceEntry, ProviderResult
 from .price_resolution import (
@@ -66,22 +65,30 @@ class NLDayAheadPricesCoordinator(DataUpdateCoordinator[PriceData]):
             hass,
             logger=_LOGGER,
             name=DOMAIN,
-            update_interval=UPDATE_INTERVAL,
+            update_interval=None,
         )
         self.entry = entry
         self.store: Store[dict[str, Any]] = Store(hass, CACHE_VERSION, f"{DOMAIN}_{entry.entry_id}")
         merged = {**entry.data, **entry.options}
         self.runtime_options = {key: merged.get(key, value) for key, value in RUNTIME_DEFAULTS.items()}
         self._remove_interval_listener = None
+        self._remove_refresh_listener = None
+        self.fetch_diagnostics: dict[str, Any] = {}
         self.analysis_cache: dict[str, Any] = {}
 
     async def async_start(self) -> None:
         """Start exact interval-boundary state updates without an API fetch."""
+        self._remove_refresh_listener = async_track_utc_time_change(
+            self.hass, self._async_scheduled_refresh, minute=7, second=0
+        )
         resolution = self._effective_price_resolution(self._requested_price_resolution(), dt_util.now())
         minute = [0, 15, 30, 45] if resolution == "quarter_hour" else 0
         self._remove_interval_listener = async_track_utc_time_change(
             self.hass, self._async_interval_boundary, minute=minute, second=0
         )
+
+    async def _async_scheduled_refresh(self, now: datetime) -> None:
+        await self.async_request_refresh()
 
     async def _async_interval_boundary(self, now: datetime) -> None:
         """Notify entities at a market interval boundary."""
@@ -102,6 +109,9 @@ class NLDayAheadPricesCoordinator(DataUpdateCoordinator[PriceData]):
 
     async def async_stop(self) -> None:
         """Stop the interval-boundary listener."""
+        if self._remove_refresh_listener is not None:
+            self._remove_refresh_listener()
+            self._remove_refresh_listener = None
         if self._remove_interval_listener is not None:
             self._remove_interval_listener()
             self._remove_interval_listener = None
@@ -115,13 +125,17 @@ class NLDayAheadPricesCoordinator(DataUpdateCoordinator[PriceData]):
         try:
             result, fallback_used, errors = await async_fetch_with_fallback(providers, today, tomorrow)
         except ProviderError as err:
+            self.fetch_diagnostics = {"today_fetch_status": "failed", "tomorrow_fetch_status": "unknown", "provider_errors": err.errors, "cache_status": "cache_unavailable", "tomorrow_prices_expected_later": True}
             cached = await self._async_load_cached()
             if cached is not None:
+                cached.errors.update(err.errors)
+                self.fetch_diagnostics["cache_status"] = cached.data_completeness
                 cached.errors["cache_reason"] = str(err)
                 return cached
             raise UpdateFailed(str(err)) from err
 
         result = self._convert_result_resolution(result, now)
+        self.fetch_diagnostics = {"today_fetch_status": "success", "tomorrow_fetch_status": "success" if result.prices_tomorrow else "not_available", "provider_errors": errors, "tomorrow_prices_expected_later": not bool(result.prices_tomorrow)}
         data = PriceData(
             result=result,
             fallback_used=fallback_used,
@@ -185,30 +199,32 @@ class NLDayAheadPricesCoordinator(DataUpdateCoordinator[PriceData]):
         now = dt_util.now()
         if not cache_is_valid(cached, now):
             return None
+        current = get_cached_prices_for_date(cached, now.date())
+        following = get_cached_prices_for_date(cached, now.date() + timedelta(days=1))
         result = ProviderResult(
             provider=PROVIDER_CACHE,
-            prices_today=_deserialize_prices(cached.get("prices_today", [])),
-            prices_tomorrow=_deserialize_prices(cached.get("prices_tomorrow", [])),
-            raw_prices_today=_deserialize_prices(cached.get("raw_prices_today", [])),
-            raw_prices_tomorrow=_deserialize_prices(cached.get("raw_prices_tomorrow", [])),
+            prices_today=_deserialize_prices(current["raw_prices"]),
+            prices_tomorrow=_deserialize_prices(following["raw_prices"]),
             raw_price_resolution=cached.get("raw_price_resolution", "hourly"),
             requested_price_resolution=cached.get("requested_price_resolution", DEFAULT_PRICE_RESOLUTION),
             effective_price_resolution=cached.get("effective_price_resolution", "hourly"),
             resolution_converted=bool(cached.get("resolution_converted", False)),
-            raw_today=cached.get("raw_today"),
-            raw_tomorrow=cached.get("raw_tomorrow"),
+            raw_today=cached.get("raw_tomorrow") if current["rollover_used"] else cached.get("raw_today"),
+            raw_tomorrow=None if current["rollover_used"] else cached.get("raw_tomorrow"),
         )
         if not result.prices_today:
             return None
         last_update = cached.get("last_successful_update")
         parsed_update = datetime.fromisoformat(last_update) if last_update else None
         return PriceData(
-            result=result,
+            result=self._convert_result_resolution(result, now),
             fallback_used=True,
             last_successful_update=parsed_update,
             from_cache=True,
             cache_age_minutes=(now - parsed_update).total_seconds() / 60 if parsed_update else None,
-            data_completeness=_data_completeness(result, now.date()),
+            data_completeness=current["status"],
+            cache_rollover_used=current["rollover_used"],
+            cache_source_date=cached.get("local_date"),
         )
 
     def _convert_result_resolution(self, result: ProviderResult, now: datetime) -> ProviderResult:

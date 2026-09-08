@@ -8,6 +8,7 @@ from abc import ABC, abstractmethod
 from datetime import date, datetime, time, timedelta, timezone
 from typing import Any
 from xml.etree import ElementTree
+from zoneinfo import ZoneInfo
 
 from aiohttp import ClientError, ClientSession
 
@@ -31,6 +32,10 @@ ENTSOE_NL_DOMAIN = "10YNL----------L"
 class ProviderError(Exception):
     """Raised when a provider cannot return usable prices."""
 
+    def __init__(self, message: str, errors: dict[str, str] | None = None) -> None:
+        super().__init__(message)
+        self.errors = errors or {}
+
 
 class BasePriceProvider(ABC):
     """Base class for asynchronous day-ahead price providers."""
@@ -51,6 +56,18 @@ class BasePriceProvider(ABC):
     async def async_fetch(self, today: date, tomorrow: date) -> ProviderResult:
         """Fetch normalized today and tomorrow prices."""
 
+    async def _optional_day(self, day: date, parser):
+        try:
+            raw = await self._fetch_day(day)
+            prices = parser(raw)
+            if prices:
+                return raw, prices
+        except Exception as err:  # noqa: BLE001 - tomorrow must not invalidate today.
+            status = getattr(err, "status", None)
+            _LOGGER.debug("%s tomorrow fetch for %s: %s", self.key, day, f"HTTP {status}" if status else type(err).__name__)
+        _LOGGER.debug("%s: Tomorrow prices are not available yet for %s; continuing with today prices", self.key, day)
+        return None, []
+
     async def _request_json(self, url: str, params: dict[str, Any] | None = None) -> Any:
         """Fetch JSON with timeout and retry."""
         last_error: Exception | None = None
@@ -58,13 +75,16 @@ class BasePriceProvider(ABC):
             try:
                 async with asyncio.timeout(REQUEST_TIMEOUT):
                     async with self.session.get(url, params=params) as response:
+                        if response.status == 204:
+                            return None
                         response.raise_for_status()
                         return await response.json(content_type=None)
             except (TimeoutError, ClientError) as err:
                 last_error = err
                 if attempt + 1 < REQUEST_RETRIES:
                     await asyncio.sleep(1)
-        raise ProviderError(str(last_error) if last_error else "request failed")
+        status = getattr(last_error, "status", None)
+        raise ProviderError(f"HTTP {status}" if status else type(last_error).__name__) from last_error
 
     async def _request_text(self, url: str, params: dict[str, Any] | None = None) -> str:
         """Fetch text with timeout and retry."""
@@ -79,7 +99,8 @@ class BasePriceProvider(ABC):
                 last_error = err
                 if attempt + 1 < REQUEST_RETRIES:
                     await asyncio.sleep(1)
-        raise ProviderError(str(last_error) if last_error else "request failed")
+        status = getattr(last_error, "status", None)
+        raise ProviderError(f"HTTP {status}" if status else type(last_error).__name__) from last_error
 
 
 class NordPoolProvider(BasePriceProvider):
@@ -89,9 +110,10 @@ class NordPoolProvider(BasePriceProvider):
 
     async def async_fetch(self, today: date, tomorrow: date) -> ProviderResult:
         today_raw = await self._fetch_day(today)
-        tomorrow_raw = await self._fetch_day(tomorrow)
         prices_today = parse_nord_pool(today_raw, self.country)
-        prices_tomorrow = parse_nord_pool(tomorrow_raw, self.country)
+        if not prices_today:
+            raise ProviderError("today returned no prices")
+        tomorrow_raw, prices_tomorrow = await self._optional_day(tomorrow, lambda raw: parse_nord_pool(raw, self.country))
         return ProviderResult(
             provider=self.key,
             prices_today=prices_today,
@@ -119,22 +141,27 @@ class EnergyChartsProvider(BasePriceProvider):
     key = PROVIDER_ENERGY_CHARTS
 
     async def async_fetch(self, today: date, tomorrow: date) -> ProviderResult:
-        start = datetime.combine(today, time.min).isoformat()
-        end = datetime.combine(tomorrow + timedelta(days=1), time.min).isoformat()
-        raw = await self._request_json(
-            "https://api.energy-charts.info/price",
-            {"bzn": self.country, "start": start, "end": end},
-        )
+        raw = await self._fetch_day(today)
         today_prices = parse_energy_charts(raw, today)
-        tomorrow_prices = parse_energy_charts(raw, tomorrow)
+        if not today_prices:
+            raise ProviderError("today returned no prices")
+        tomorrow_raw, tomorrow_prices = await self._optional_day(tomorrow, lambda payload: parse_energy_charts(payload, tomorrow))
         return ProviderResult(
             provider=self.key,
             prices_today=today_prices,
             prices_tomorrow=tomorrow_prices,
             raw_today=raw,
-            raw_tomorrow=raw,
+            raw_tomorrow=tomorrow_raw,
             raw_price_resolution=infer_price_resolution([*today_prices, *tomorrow_prices]),
         )
+
+    async def _fetch_day(self, day: date) -> Any:
+        zone = ZoneInfo("Europe/Amsterdam")
+        start = datetime.combine(day, time.min, tzinfo=zone)
+        end = datetime.combine(day + timedelta(days=1), time.min, tzinfo=zone)
+        return await self._request_json("https://api.energy-charts.info/price", {
+            "bzn": self.country, "start": start.isoformat(), "end": end.isoformat(),
+        })
 
 
 class EntsoeProvider(BasePriceProvider):
@@ -154,9 +181,10 @@ class EntsoeProvider(BasePriceProvider):
 
     async def async_fetch(self, today: date, tomorrow: date) -> ProviderResult:
         today_raw = await self._fetch_day(today)
-        tomorrow_raw = await self._fetch_day(tomorrow)
         prices_today = parse_entsoe_xml(today_raw)
-        prices_tomorrow = parse_entsoe_xml(tomorrow_raw)
+        if not prices_today:
+            raise ProviderError("today returned no prices")
+        tomorrow_raw, prices_tomorrow = await self._optional_day(tomorrow, parse_entsoe_xml)
         return ProviderResult(
             provider=self.key,
             prices_today=prices_today,
@@ -167,8 +195,9 @@ class EntsoeProvider(BasePriceProvider):
         )
 
     async def _fetch_day(self, day: date) -> str:
-        start = datetime.combine(day, time.min).strftime("%Y%m%d%H%M")
-        end = datetime.combine(day + timedelta(days=1), time.min).strftime("%Y%m%d%H%M")
+        zone = ZoneInfo("Europe/Amsterdam")
+        start = datetime.combine(day, time.min, tzinfo=zone).astimezone(timezone.utc).strftime("%Y%m%d%H%M")
+        end = datetime.combine(day + timedelta(days=1), time.min, tzinfo=zone).astimezone(timezone.utc).strftime("%Y%m%d%H%M")
         return await self._request_text(
             "https://web-api.tp.entsoe.eu/api",
             {
@@ -196,9 +225,12 @@ async def async_fetch_with_fallback(
                 raise ProviderError("provider returned no prices for today")
             return result, index > 0, errors
         except Exception as err:  # noqa: BLE001 - provider isolation is intentional.
-            _LOGGER.warning("Provider %s failed: %s", provider.key, err)
-            errors[provider.key] = str(err)
-    raise ProviderError("all providers failed")
+            status = getattr(err, "status", None)
+            detail = f"HTTP {status}" if status else str(err) if isinstance(err, ProviderError) else type(err).__name__
+            following = providers[index + 1].key if index + 1 < len(providers) else "cache"
+            _LOGGER.warning("Provider %s today fetch failed for %s: %s; trying %s", provider.key, today, detail, following)
+            errors[provider.key] = detail
+    raise ProviderError("all providers failed", errors)
 
 
 def parse_nord_pool(payload: Any, area: str) -> list[PriceEntry]:
@@ -237,7 +269,9 @@ def parse_energy_charts(payload: Any, target_day: date) -> list[PriceEntry]:
             if isinstance(timestamp, (int, float))
             else datetime.fromisoformat(timestamp)
         )
-        if dt.date() == target_day:
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        if dt.astimezone(ZoneInfo("Europe/Amsterdam")).date() == target_day:
             prices.append(PriceEntry(dt, convert_to_eur_kwh(float(value), "EUR/MWh")))
     return sorted(prices, key=lambda entry: entry.time)
 

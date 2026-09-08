@@ -22,12 +22,15 @@ async def async_get_config_entry_diagnostics(
     options = {**entry.data, **entry.options}
     options.pop(CONF_ENTSOE_API_TOKEN, None)
     if data is None:
-        return {"loaded": False, "options": options}
+        return {"loaded": False, "options": options, "cache_rollover_used": False, "cache_source_date": None, **coordinator.fetch_diagnostics}
     advisor = _v2_data("price_advisor", data, dt_util.now(), entry, hass.config.language)
     price_score = _v2_data("price_score", data, dt_util.now(), entry)
     supplier = _selected_supplier_profile(entry)
     return {
         "loaded": True,
+        **coordinator.fetch_diagnostics,
+        "cache_rollover_used": data.cache_rollover_used,
+        "cache_source_date": data.cache_source_date,
         "provider_status": data.errors,
         "selected_provider": data.result.provider,
         "fallback_used": data.fallback_used,

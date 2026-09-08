@@ -168,7 +168,13 @@ The config flow defaults to:
 - Primary provider: Nord Pool
 - ENTSO-E fallback: disabled
 
-The integration uses Home Assistant's shared `aiohttp` websession, modern async config entries, options flow, and a `DataUpdateCoordinator`. API failures do not block startup as long as cached prices are available.
+The integration uses Home Assistant's shared `aiohttp` websession, modern async config entries, options flow, and a `DataUpdateCoordinator`. API requests run in the background and do not block startup. Regular API refreshes run hourly at minute 7; interval-boundary entity updates do not request new data.
+
+Tomorrow prices are optional. Before publication, valid today prices remain
+available. If all providers fail after midnight, cached tomorrow intervals are
+promoted to today using their Europe/Amsterdam timestamps. Partial current-day
+cache data is accepted; stale days are rejected. Diagnostics report fetch
+statuses, provider errors, and cache rollover status.
 
 Nord Pool can publish Dutch day-ahead prices in 15-minute market time units.
 This integration preserves those source intervals and exposes hourly or

@@ -2,7 +2,15 @@
 
 All notable changes to **EnerPrice** are documented here.
 
-## Unreleased
+## v2.0.1
+
+### Fixed
+
+- Fixed morning price availability when tomorrow prices are not yet published.
+- Fixed persistent cache rollover at midnight, including partial current-day data.
+- Tomorrow-price failures no longer invalidate valid current-day prices.
+- Improved Energy-Charts local-date handling for Europe/Amsterdam.
+- Improved provider fallback diagnostics and scheduled hourly API refresh at minute 7.
 
 ### Added
 

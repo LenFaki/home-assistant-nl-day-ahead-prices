@@ -92,7 +92,7 @@ def test_cache_validation() -> None:
     now = datetime(2026, 7, 9, 12, tzinfo=timezone.utc)
     valid = {"local_date": "2026-07-09", "prices_today": [{"time": now.isoformat(), "price": 0.1}]}
     assert cache_is_valid(valid, now)
-    assert not cache_is_valid({**valid, "local_date": "2026-07-08"}, now)
+    assert cache_is_valid({**valid, "local_date": "2026-07-08"}, now)
     assert not cache_is_valid({**valid, "prices_today": []}, now)
 
 
