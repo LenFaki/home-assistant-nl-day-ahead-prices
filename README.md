@@ -444,6 +444,15 @@ Price entries use this format:
 
 ## ApexCharts Example
 
+EnerPrice always exposes its core market and all-in price arrays as sensor
+attributes. Extended analysis attributes can optionally be enabled separately
+using the existing **Enable Extended Attributes** switch on the device page
+(enabled by default). No options-flow change is needed for existing dashboards.
+
+Use `entity.attributes.prices_today` for market prices and
+`entity.attributes.all_in_prices_today` for all-in prices. Both retain the
+`{time, price}` format, including when prices are restored from cache.
+
 ```yaml
 type: custom:apexcharts-card
 graph_span: 48h

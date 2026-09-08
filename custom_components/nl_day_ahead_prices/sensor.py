@@ -736,29 +736,6 @@ class NLDayAheadPriceSensor(CoordinatorEntity[NLDayAheadPricesCoordinator], Sens
         if data is None:
             return {}
         supplier_profile = _selected_supplier_profile(self.entry)
-        cheapest_blocks = _cheapest_block_attributes(data)
-        now = dt_util.now()
-        prices = data.result.prices
-        current_index = next(
-            (index for index, item in enumerate(prices) if item.time <= now and (index + 1 == len(prices) or now < prices[index + 1].time)),
-            None,
-        )
-        current_entry = prices[current_index] if current_index is not None else None
-        next_entry = prices[current_index + 1] if current_index is not None and current_index + 1 < len(prices) else None
-        all_in_entries = _all_in_entries(data, self.entry)
-        current_all_in = current_price(all_in_entries, now)
-        rating_3, rating_5 = price_ratings(current_all_in, all_in_entries)
-        trend = trend_for_prices(
-            all_in_entries,
-            now,
-            float(self.coordinator.runtime_options[CONF_STABLE_TREND_THRESHOLD]),
-            float(self.coordinator.runtime_options[CONF_STRONG_TREND_THRESHOLD]),
-        )
-        day_stats = volatility(
-            all_in_entries[: len(data.result.prices_today)]
-        )
-        best_periods = _periods(data, self.entry, self.coordinator.runtime_options, peak=False)
-        peak_periods = _periods(data, self.entry, self.coordinator.runtime_options, peak=True)
         base = {
             "prices": [entry.as_attribute() for entry in data.result.prices],
             "prices_today": [entry.as_attribute() for entry in data.result.prices_today],
@@ -772,8 +749,6 @@ class NLDayAheadPriceSensor(CoordinatorEntity[NLDayAheadPricesCoordinator], Sens
             "all_in_prices_tomorrow": build_all_in_price_attributes(
                 data.result.prices_tomorrow, _energy_tax(self.entry), supplier_profile, _vat(self.entry)
             ),
-            "raw_today": data.result.raw_today,
-            "raw_tomorrow": data.result.raw_tomorrow,
             "price_resolution": data.result.effective_price_resolution,
             "requested_price_resolution": data.result.requested_price_resolution,
             "effective_price_resolution": data.result.effective_price_resolution,
@@ -794,10 +769,35 @@ class NLDayAheadPriceSensor(CoordinatorEntity[NLDayAheadPricesCoordinator], Sens
             "supplier_monthly_fee": round(calculate_monthly_fee(supplier_profile), 2),
             "energy_tax": _energy_tax(self.entry),
             "vat": _vat(self.entry),
+        }
+        if not self.coordinator.runtime_options[CONF_EXTENDED_ATTRIBUTES]:
+            return base
+
+        now = dt_util.now()
+        prices = data.result.prices
+        current_index = next(
+            (index for index, item in enumerate(prices) if item.time <= now and (index + 1 == len(prices) or now < prices[index + 1].time)),
+            None,
+        )
+        current_entry = prices[current_index] if current_index is not None else None
+        next_entry = prices[current_index + 1] if current_index is not None and current_index + 1 < len(prices) else None
+        all_in_entries = _all_in_entries(data, self.entry)
+        current_all_in = current_price(all_in_entries, now)
+        rating_3, rating_5 = price_ratings(current_all_in, all_in_entries)
+        trend = trend_for_prices(
+            all_in_entries,
+            now,
+            float(self.coordinator.runtime_options[CONF_STABLE_TREND_THRESHOLD]),
+            float(self.coordinator.runtime_options[CONF_STRONG_TREND_THRESHOLD]),
+        )
+        day_stats = volatility(all_in_entries[: len(data.result.prices_today)])
+        base.update({
+            "raw_today": data.result.raw_today,
+            "raw_tomorrow": data.result.raw_tomorrow,
             "supplier_profile_last_verified": supplier_profile.last_verified,
             "supplier_profile_source_url": supplier_profile.source_url,
             "supplier_profile": supplier_profile_to_dict(supplier_profile),
-            **cheapest_blocks,
+            **_cheapest_block_attributes(data),
             "current_interval_start": current_entry.time.isoformat() if current_entry else None,
             "current_interval_end": next_entry.time.isoformat() if next_entry else None,
             "next_interval_start": next_entry.time.isoformat() if next_entry else None,
@@ -814,21 +814,12 @@ class NLDayAheadPriceSensor(CoordinatorEntity[NLDayAheadPricesCoordinator], Sens
             "day_max": day_stats.get("max_price"),
             "day_average": day_stats.get("average_price"),
             "day_median": day_stats.get("median_price"),
-        }
+        })
         if self.coordinator.runtime_options[CONF_CHART_HELPERS]:
+            best_periods = _periods(data, self.entry, self.coordinator.runtime_options, peak=False)
+            peak_periods = _periods(data, self.entry, self.coordinator.runtime_options, peak=True)
             base["best_periods"] = [period.as_dict() for period in best_periods]
             base["peak_periods"] = [period.as_dict() for period in peak_periods]
-        if not self.coordinator.runtime_options[CONF_EXTENDED_ATTRIBUTES]:
-            return {
-                key: base[key]
-                for key in (
-                    "provider",
-                    "fallback_used",
-                    "last_successful_update",
-                    "price_resolution",
-                    "selected_supplier",
-                )
-            }
         if self.entity_description.analysis_key and self.entity_description.analysis_key.startswith("volatility_"):
             if self.entity_description.analysis_key == "volatility_today":
                 base.update(volatility(all_in_entries[: len(data.result.prices_today)]))

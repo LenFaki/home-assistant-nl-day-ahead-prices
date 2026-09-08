@@ -2,6 +2,15 @@
 
 All notable changes to **EnerPrice** are documented here.
 
+## 2.0.2
+
+### Fixed
+
+- Restored core price attributes for ApexCharts and other dashboards.
+- `prices_today`, `prices_tomorrow` and all-in price arrays are now always available when price data exists.
+- Core dashboard attributes no longer depend on the extended-attributes setting.
+- Added regression coverage for standard and quarter-hour chart data.
+
 ## v2.0.1
 
 ### Fixed
