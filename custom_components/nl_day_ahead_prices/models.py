@@ -38,7 +38,8 @@ class ProviderResult:
     @property
     def prices(self) -> list[PriceEntry]:
         """Return today and tomorrow prices."""
-        return sorted([*self.prices_today, *self.prices_tomorrow], key=lambda item: item.time)
+        # Absolute time preserves interval order across the repeated DST hour.
+        return sorted([*self.prices_today, *self.prices_tomorrow], key=lambda item: item.time.timestamp())
 
     @property
     def raw_prices(self) -> list[PriceEntry]:

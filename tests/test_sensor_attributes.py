@@ -90,7 +90,7 @@ def test_core_and_optional_attributes(sensor_module, extended, monkeypatch):
         monkeypatch.setattr(sensor_module, "_cheapest_block_attributes", Mock(side_effect=AssertionError("unneeded analysis")))
     attrs = sensor.extra_state_attributes
     required = {
-        "prices", "prices_today", "prices_tomorrow", "all_in_prices_today", "all_in_prices_tomorrow",
+        "prices", "prices_today", "prices_tomorrow", "all_in_prices", "all_in_prices_today", "all_in_prices_tomorrow",
         "raw_prices", "raw_prices_today", "raw_prices_tomorrow", "raw_price_resolution",
         "price_resolution", "requested_price_resolution", "effective_price_resolution", "resolution_converted",
         "provider", "provider_name", "fallback_used", "cache_used", "data_completeness",
@@ -100,13 +100,15 @@ def test_core_and_optional_attributes(sensor_module, extended, monkeypatch):
     assert ("supplier_profile" in attrs) == extended
     assert ("trend" in attrs) == extended
     assert attrs["prices_tomorrow"] == attrs["all_in_prices_tomorrow"] == []
-    for key in ("prices_today", "all_in_prices_today"):
+    assert attrs["all_in_prices"] == attrs["all_in_prices_today"]
+    for key in ("prices_today", "all_in_prices_today", "all_in_prices"):
         assert isinstance(attrs[key], list)
         for item in attrs[key]:
             assert set(item) == {"time", "price"}
             assert isinstance(item["price"], (int, float))
             assert datetime.fromisoformat(item["time"]).tzinfo is not None
     assert attrs["all_in_prices_today"][0]["price"] > attrs["prices_today"][0]["price"]
+    assert attrs["all_in_prices"][0]["price"] > attrs["prices"][0]["price"]
     assert sensor.suggested_object_id == "nl_day_ahead_prices_average_price_today"
 
 
@@ -114,7 +116,9 @@ def test_core_and_optional_attributes(sensor_module, extended, monkeypatch):
 @pytest.mark.parametrize("minutes", [15, 60])
 def test_chart_intervals_and_dst(sensor_module, day, hours, minutes):
     attrs = make_sensor(sensor_module, day_prices(day, minutes)).extra_state_attributes
-    for key in ("prices_today", "all_in_prices_today"):
+    assert len(attrs["all_in_prices"]) == len(attrs["prices"])
+    assert [item["time"] for item in attrs["all_in_prices"]] == [item["time"] for item in attrs["prices"]]
+    for key in ("prices_today", "all_in_prices_today", "all_in_prices"):
         values = attrs[key]
         assert len(values) == hours * 60 // minutes
         timestamps = [datetime.fromisoformat(item["time"]).timestamp() for item in values]
@@ -130,3 +134,19 @@ def test_promoted_cache_chart_attributes(sensor_module):
     assert restored["status"] == attrs["data_completeness"] == "cache_promoted_tomorrow"
     assert attrs["cache_used"]
     assert len(attrs["prices_today"]) == len(attrs["all_in_prices_today"]) == 24
+    assert attrs["all_in_prices"] == attrs["all_in_prices_today"]
+    assert len(attrs["all_in_prices"]) == len(attrs["prices"])
+
+
+@pytest.mark.parametrize("minutes", [15, 60])
+@pytest.mark.parametrize("extended", [False, True])
+def test_combined_all_in_today_and_tomorrow(sensor_module, minutes, extended):
+    sensor = make_sensor(sensor_module, day_prices("2026-09-08", minutes), extended)
+    sensor.coordinator.data.result.prices_tomorrow = day_prices("2026-09-09", minutes)
+    attrs = sensor.extra_state_attributes
+    combined = attrs["all_in_prices"]
+    assert combined == attrs["all_in_prices_today"] + attrs["all_in_prices_tomorrow"]
+    assert len(combined) == len(attrs["prices"]) == 48 * 60 // minutes
+    assert [item["time"] for item in combined] == [item["time"] for item in attrs["prices"]]
+    timestamps = [datetime.fromisoformat(item["time"]).timestamp() for item in combined]
+    assert all(b - a == minutes * 60 for a, b in zip(timestamps, timestamps[1:], strict=False))

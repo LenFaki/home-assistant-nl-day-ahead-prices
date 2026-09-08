@@ -397,6 +397,7 @@ Each price sensor exposes ApexCharts-friendly attributes:
 - `prices_today`
 - `prices_tomorrow`
 - `all_in_prices_today`
+- `all_in_prices`
 - `all_in_prices_tomorrow`
 - `raw_prices`
 - `raw_prices_today`
@@ -443,6 +444,30 @@ Price entries use this format:
 ```
 
 ## ApexCharts Example
+
+| Attribute | Price data |
+| --- | --- |
+| `prices` | All available market prices |
+| `prices_today` | Today's market prices |
+| `prices_tomorrow` | Tomorrow's market prices |
+| `all_in_prices` | All available all-in prices |
+| `all_in_prices_today` | Today's all-in prices |
+| `all_in_prices_tomorrow` | Tomorrow's all-in prices |
+
+`all_in_prices` automatically includes tomorrow as soon as those prices are
+available. For an all-in series in **ct/kWh**, use this recommended generator
+and set the series unit to `ct/kWh` (the attributes themselves remain EUR/kWh):
+
+```yaml
+unit: ct/kWh
+data_generator: |
+  const prices = entity.attributes.all_in_prices ?? [];
+
+  return prices.map(p => [
+    new Date(p.time).getTime(),
+    parseFloat((p.price * 100).toFixed(2))
+  ]);
+```
 
 EnerPrice always exposes its core market and all-in price arrays as sensor
 attributes. Extended analysis attributes can optionally be enabled separately

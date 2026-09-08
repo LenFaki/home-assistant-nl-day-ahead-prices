@@ -738,6 +738,9 @@ class NLDayAheadPriceSensor(CoordinatorEntity[NLDayAheadPricesCoordinator], Sens
         supplier_profile = _selected_supplier_profile(self.entry)
         base = {
             "prices": [entry.as_attribute() for entry in data.result.prices],
+            "all_in_prices": build_all_in_price_attributes(
+                data.result.prices, _energy_tax(self.entry), supplier_profile, _vat(self.entry)
+            ),
             "prices_today": [entry.as_attribute() for entry in data.result.prices_today],
             "prices_tomorrow": [entry.as_attribute() for entry in data.result.prices_tomorrow],
             "raw_prices": [entry.as_attribute() for entry in data.result.raw_prices],

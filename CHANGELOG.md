@@ -2,6 +2,24 @@
 
 All notable changes to **EnerPrice** are documented here.
 
+## 2.0.3
+
+### Added
+
+- Added `all_in_prices` as a combined all-in price array for all currently available intervals.
+- ApexCharts dashboards can now use a single attribute for today and tomorrow all-in prices.
+
+### Improved
+
+- Combined price arrays preserve chronological order across the repeated DST hour.
+- Made the market-price and all-in-price attribute APIs consistent:
+  - `prices`
+  - `prices_today`
+  - `prices_tomorrow`
+  - `all_in_prices`
+  - `all_in_prices_today`
+  - `all_in_prices_tomorrow`
+
 ## 2.0.2
 
 ### Fixed
