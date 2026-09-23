@@ -385,3 +385,67 @@ def test_published_schema_covers_runtime_fields():
     assert set(tariff["required"]) == remote.TARIFF_FIELDS
     assert tariff["properties"]["purchase_fee_export"]["minimum"] == -remote.MAX_KWH_FEE
     assert tariff["properties"]["fixed_monthly_fee_electricity"]["maximum"] == remote.MAX_MONTHLY_FEE
+
+
+NUMERIC_RULES = [
+    ("purchase_fee_import", 0, remote.MAX_KWH_FEE),
+    ("purchase_fee_export", -remote.MAX_KWH_FEE, remote.MAX_KWH_FEE),
+    ("fixed_monthly_fee_electricity", 0, remote.MAX_MONTHLY_FEE),
+    ("feed_in_fee", -remote.MAX_KWH_FEE, remote.MAX_KWH_FEE),
+    ("imbalance_fee", -remote.MAX_KWH_FEE, remote.MAX_KWH_FEE),
+]
+
+
+@pytest.mark.parametrize("field,minimum,maximum", NUMERIC_RULES)
+def test_numeric_schema_runtime_alignment(field, minimum, maximum):
+    schema = json.loads((ROOT / "registry/supplier_tariffs.schema.json").read_text())
+    rule = schema["properties"]["suppliers"]["additionalProperties"]["properties"]["tariffs"]["items"]["properties"][field]
+    assert rule["minimum"] == minimum
+    assert rule["maximum"] == maximum
+    assert "exclusiveMinimum" not in rule and "exclusiveMaximum" not in rule
+    assert rule["type"] == (["number", "null"] if field == "imbalance_fee" else "number")
+    assert remote.NUMERIC_TARIFF_BOUNDS[field] == (minimum, maximum)
+
+
+@pytest.mark.parametrize("field,minimum,maximum", NUMERIC_RULES)
+def test_numeric_endpoints_and_realistic_values_accepted(field, minimum, maximum):
+    values = [minimum, maximum, 0, 0.01299]
+    if minimum < 0:
+        values.append(-0.01299)
+    if field == "imbalance_fee":
+        values.append(None)
+    for value in values:
+        candidate = payload()
+        candidate["suppliers"]["anwb_energie"]["tariffs"][0][field] = value
+        profile = remote.parse_remote_registry(candidate).suppliers["anwb_energie"][0]
+        assert getattr(profile, field) == value
+
+
+@pytest.mark.parametrize("field,minimum,maximum", NUMERIC_RULES)
+def test_numeric_out_of_bounds_rejected_before_normalization(field, minimum, maximum, monkeypatch):
+    monkeypatch.setattr(remote, "parse_registry", Mock(side_effect=AssertionError("Reached normalization")))
+    for value in (minimum - 0.000001, maximum + 0.000001, 10**400, -(10**400)):
+        candidate = payload()
+        candidate["suppliers"]["anwb_energie"]["tariffs"][0][field] = value
+        with pytest.raises(ValueError, match=f"{field} outside safety bounds"):
+            remote.parse_remote_registry(candidate)
+
+
+@pytest.mark.parametrize("field,minimum,maximum", NUMERIC_RULES)
+@pytest.mark.parametrize("value", [True, False, "0.02", [], {}, float("nan"), float("inf"), -float("inf")])
+def test_numeric_invalid_types_and_nonfinite_rejected_before_normalization(
+    field, minimum, maximum, value, monkeypatch
+):
+    monkeypatch.setattr(remote, "parse_registry", Mock(side_effect=AssertionError("Reached normalization")))
+    candidate = payload()
+    candidate["suppliers"]["anwb_energie"]["tariffs"][0][field] = value
+    with pytest.raises(ValueError, match=field):
+        remote.parse_remote_registry(candidate)
+
+
+@pytest.mark.parametrize("field", [field for field, _, _ in NUMERIC_RULES if field != "imbalance_fee"])
+def test_null_rejected_for_nonnullable_numeric_fields(field):
+    candidate = payload()
+    candidate["suppliers"]["anwb_energie"]["tariffs"][0][field] = None
+    with pytest.raises(ValueError, match=field):
+        remote.parse_remote_registry(candidate)

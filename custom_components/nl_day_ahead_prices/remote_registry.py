@@ -13,6 +13,7 @@ import re
 from collections.abc import Callable
 from dataclasses import replace
 from datetime import date, datetime, timedelta, timezone
+from math import isfinite
 from typing import Any
 from urllib.parse import urlparse
 
@@ -31,6 +32,13 @@ REMOTE_TIMEOUT_SECONDS = 20
 MAX_REGISTRY_BYTES = 1_048_576
 MAX_KWH_FEE = 5
 MAX_MONTHLY_FEE = 1000
+NUMERIC_TARIFF_BOUNDS = {
+    "purchase_fee_import": (0, MAX_KWH_FEE),
+    "purchase_fee_export": (-MAX_KWH_FEE, MAX_KWH_FEE),
+    "fixed_monthly_fee_electricity": (0, MAX_MONTHLY_FEE),
+    "feed_in_fee": (-MAX_KWH_FEE, MAX_KWH_FEE),
+    "imbalance_fee": (-MAX_KWH_FEE, MAX_KWH_FEE),
+}
 STORAGE_KEY = "nl_day_ahead_prices_supplier_registry"
 REQUIRED_SUPPLIERS = frozenset({
     "zonneplan", "tibber", "anwb_energie", "easy_energy", "eneco", "vandebron",
@@ -85,6 +93,17 @@ def parse_remote_registry(payload: Any) -> SupplierRegistry:
         for record in records:
             if not isinstance(record, dict) or set(record) != TARIFF_FIELDS:
                 raise ValueError("Invalid tariff fields")
+            for field, (minimum, maximum) in NUMERIC_TARIFF_BOUNDS.items():
+                value = record[field]
+                if field == "imbalance_fee" and value is None:
+                    continue
+                if type(value) not in (int, float):
+                    raise ValueError(f"{field} must be numeric, not boolean or null")
+                # Integers are finite; avoid float conversion of enormous JSON integers.
+                if isinstance(value, float) and not isfinite(value):
+                    raise ValueError(f"{field} must be finite")
+                if not minimum <= value <= maximum:
+                    raise ValueError(f"{field} outside safety bounds")
             for field in ("valid_from", "valid_until", "last_verified"):
                 value = record[field]
                 if value is not None:
@@ -118,13 +137,6 @@ def parse_remote_registry(payload: Any) -> SupplierRegistry:
         for previous, current in zip(ordered, ordered[1:], strict=False):
             if previous.valid_until is None or current.valid_from is None or current.valid_from <= previous.valid_until:
                 raise ValueError("Overlapping tariff periods")
-        for profile in profiles:
-            if not 0 <= profile.fixed_monthly_fee_electricity <= MAX_MONTHLY_FEE:
-                raise ValueError("Monthly fee outside safety bounds")
-            for amount in (profile.purchase_fee_import, profile.purchase_fee_export,
-                           profile.feed_in_fee, profile.imbalance_fee):
-                if amount is not None and abs(amount) > MAX_KWH_FEE:
-                    raise ValueError("Per-kWh fee outside safety bounds")
     return SupplierRegistry(
         parsed.version,
         {key: tuple(replace(p, registry_source="remote") for p in profiles)
