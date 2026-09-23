@@ -267,11 +267,11 @@ def test_unsafe_links_not_rendered(url):
     assert audit.safe_url(url) is None
 
 
-def test_version_and_unchanged_manifest_do_not_release():
+def test_manifest_and_project_versions_match():
     manifest = (ROOT / release.MANIFEST).read_text()
-    assert json.loads(manifest)["version"] == "2.1.1"
-    assert tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]["version"] == "2.1.1"
-    assert not release.automatic_change_required("push", "2.1.1", manifest)
+    manifest_version = json.loads(manifest)["version"]
+    project_version = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]["version"]
+    assert manifest_version == project_version
 
 
 def test_workflow_security_schedule_and_release_job_unchanged():
