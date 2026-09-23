@@ -271,7 +271,7 @@ def test_translations_and_version():
         assert set(content["entity"]["sensor"]["supplier_registry_status"]["state"]) == {
             "remote", "cached_remote", "bundled",
         }
-    assert json.loads((base / "manifest.json").read_text())["version"] == "2.1.1"
+    assert json.loads((base / "manifest.json").read_text())["version"] == "2.2.0"
 
 
 async def test_shared_manager_factory_loads_cache_once_without_network(monkeypatch):
