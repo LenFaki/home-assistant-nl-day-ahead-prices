@@ -2,6 +2,33 @@
 
 All notable changes to **EnerPrice** are documented here.
 
+## 2.2.0
+
+### Added
+
+- Added a validated remote supplier tariff registry with persistent last-known-good caching and the bundled registry as an offline fallback.
+- Added `Supplier Tariff Status` and `Supplier Registry Status` diagnostic sensors for tariff freshness, registry provenance and update state.
+- Added per-config-entry `Automatic` and `Bundled only` supplier tariff update modes, including runtime switching without a Home Assistant restart or an extra market-price API request.
+- Added safe Home Assistant diagnostics for supplier tariff and registry metadata.
+- Added deterministic supplier-registry maintenance tooling with console, JSON and Markdown audit reports.
+- Added a weekly GitHub supplier tariff audit that maintains one central issue for records requiring human verification.
+- Added a semantic registry revision guard so tariff changes require a higher registry revision.
+
+### Improved
+
+- Shared the pure-Python registry validation rules between the Home Assistant runtime and maintainer tooling.
+- Remote registry checks validate complete candidates before activation, persist before publication and keep cached or bundled data active when a remote check fails.
+- Multiple EnerPrice config entries can independently use automatic or bundled tariff data while sharing one remote transport/cache manager.
+- Supplier tariff freshness uses the existing 60/120-day verification policy and preserves date-aware historical tariff selection.
+- Registry maintenance remains read-only: supplier websites are not scraped and tariff values are never changed automatically.
+
+### Compatibility
+
+- The integration domain remains `nl_day_ahead_prices`.
+- Existing price entities, services, configuration and price-array schemas remain compatible.
+- Custom supplier configuration retains precedence over registry supplier data.
+- The bundled supplier registry remains available for offline use and as fallback.
+
 ## 2.1.1
 
 ### Fixed
