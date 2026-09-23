@@ -27,6 +27,7 @@
           "enable_entsoe": "Enable optional ENTSO-E fallback",
           "entsoe_api_token": "ENTSO-E API token",
           "selected_supplier": "Supplier",
+          "supplier_tariff_updates": "Supplier tariff updates",
           "price_resolution": "Price interval",
           "energy_tax": "Energy tax per kWh",
           "energy_tax_incl_vat": "Energy tax including VAT",
@@ -62,6 +63,14 @@
       "invalid_vat": "VAT must be between 0 and 1",
       "negative_value": "This value cannot be negative",
       "supplier_profile_unavailable": "The selected supplier profile is unavailable"
+    }
+  },
+  "selector": {
+    "supplier_tariff_updates": {
+      "options": {
+        "automatic": "Automatic (recommended)",
+        "bundled": "Bundled only"
+      }
     }
   },
   "services": {
@@ -176,6 +185,24 @@
   },
   "entity": {
     "sensor": {
+      "supplier_tariff_status": {
+        "name": "Supplier Tariff Status",
+        "state": {
+          "current": "Current",
+          "verification_recommended": "Verification recommended",
+          "stale": "Stale",
+          "unknown": "Unknown",
+          "custom": "Custom"
+        }
+      },
+      "supplier_registry_status": {
+        "name": "Supplier Registry Status",
+        "state": {
+          "remote": "Remote",
+          "cached_remote": "Cached remote",
+          "bundled": "Bundled"
+        }
+      },
       "current_market_price": { "name": "Current Market Price" },
       "next_hour_market_price": { "name": "Next Market Price" },
       "average_price_today": { "name": "Average Price Today" },

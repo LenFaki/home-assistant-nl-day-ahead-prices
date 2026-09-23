@@ -27,6 +27,7 @@
           "enable_entsoe": "Optionele ENTSO-E fallback inschakelen",
           "entsoe_api_token": "ENTSO-E API-token",
           "selected_supplier": "Leverancier",
+          "supplier_tariff_updates": "Leverancierstarieven bijwerken",
           "price_resolution": "Prijsinterval",
           "energy_tax": "Energiebelasting per kWh",
           "energy_tax_incl_vat": "Energiebelasting inclusief btw",
@@ -62,6 +63,14 @@
       "invalid_vat": "BTW moet tussen 0 en 1 liggen",
       "negative_value": "Deze waarde mag niet negatief zijn",
       "supplier_profile_unavailable": "Het gekozen leveranciersprofiel is niet beschikbaar"
+    }
+  },
+  "selector": {
+    "supplier_tariff_updates": {
+      "options": {
+        "automatic": "Automatisch (aanbevolen)",
+        "bundled": "Alleen meegeleverd"
+      }
     }
   },
   "services": {
@@ -176,6 +185,24 @@
   },
   "entity": {
     "sensor": {
+      "supplier_tariff_status": {
+        "name": "Status leverancierstarief",
+        "state": {
+          "current": "Actueel",
+          "verification_recommended": "Controle aanbevolen",
+          "stale": "Verouderd",
+          "unknown": "Onbekend",
+          "custom": "Eigen tarieven"
+        }
+      },
+      "supplier_registry_status": {
+        "name": "Status tarievenregister",
+        "state": {
+          "remote": "Remote",
+          "cached_remote": "Remote uit cache",
+          "bundled": "Meegeleverd"
+        }
+      },
       "current_market_price": { "name": "Huidige Marktprijs" },
       "next_hour_market_price": { "name": "Volgende Marktprijs" },
       "average_price_today": { "name": "Gemiddelde Prijs Vandaag" },

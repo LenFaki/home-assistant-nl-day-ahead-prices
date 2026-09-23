@@ -10,7 +10,7 @@ from typing import Any
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorEntityDescription, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import UnitOfEnergy
+from homeassistant.const import EntityCategory, UnitOfEnergy
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -78,9 +78,10 @@ from .price_resolution import (
     PRICE_RESOLUTION_QUARTER_HOUR,
     find_cheapest_consecutive_block,
 )
+from .registry_status import registry_status, tariff_status
 from .scoring import calculate_day_score, calculate_opportunity, calculate_price_score
 from .supplier_profiles import SupplierProfile, supplier_profile_to_dict
-from .supplier_registry import get_supplier_tariff, tariff_metadata
+from .supplier_registry import get_supplier_tariff, supplier_update_mode, tariff_metadata
 
 EUR_PER_KWH = f"EUR/{UnitOfEnergy.KILO_WATT_HOUR}"
 _LOGGER = logging.getLogger(__name__)
@@ -188,7 +189,7 @@ def _selected_supplier_profile(entry: ConfigEntry) -> SupplierProfile:
     if key == "custom":
         return _custom_supplier_profile(entry)
 
-    profile = get_supplier_tariff(key, dt_util.now())
+    profile = get_supplier_tariff(key, dt_util.now(), mode=supplier_update_mode(_entry_options(entry)))
     if profile is not None:
         return profile
 
@@ -648,6 +649,7 @@ async def async_setup_entry(
     """Set up sensors."""
     coordinator: NLDayAheadPricesCoordinator = hass.data[DOMAIN][entry.entry_id]
     entities = [NLDayAheadPriceSensor(coordinator, entry, description) for description in SENSORS]
+    entities.extend(NLRegistryDiagnosticSensor(coordinator, entry, description) for description in REGISTRY_SENSORS)
     _LOGGER.info("Adding %s EnerPrice sensor entities", len(entities))
     async_add_entities(entities)
 
@@ -849,3 +851,40 @@ def _cheapest_block_attributes(data: PriceData) -> dict[str, Any]:
             "cheapest_4_hours": 240,
         }
     return {key: find_cheapest_consecutive_block(prices, minutes) for key, minutes in durations.items()}
+
+REGISTRY_SENSORS = (
+    NLPriceSensorDescription(
+        key="supplier_tariff_status", translation_key="supplier_tariff_status",
+        device_class=SensorDeviceClass.ENUM, entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=True,
+        options=["current", "verification_recommended", "stale", "unknown", "custom"],
+        value_fn=lambda data, now, entry: None,
+    ),
+    NLPriceSensorDescription(
+        key="supplier_registry_status", translation_key="supplier_registry_status",
+        device_class=SensorDeviceClass.ENUM, entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=True,
+        options=["remote", "cached_remote", "bundled"],
+        value_fn=lambda data, now, entry: None,
+    ),
+)
+
+
+class NLRegistryDiagnosticSensor(NLDayAheadPriceSensor):
+    """Registry diagnostics stay available even when market APIs are unavailable."""
+
+    @property
+    def available(self):
+        return True
+
+    @property
+    def native_value(self):
+        attrs = self.extra_state_attributes
+        return attrs["freshness"] if self.entity_description.key == "supplier_tariff_status" else attrs["active_source"]
+
+    @property
+    def extra_state_attributes(self):
+        manager = getattr(self.coordinator, "registry_manager", None)
+        if self.entity_description.key == "supplier_tariff_status":
+            return tariff_status(_selected_supplier_profile(self.entry), dt_util.now(), manager)
+        return registry_status(manager, supplier_update_mode(_entry_options(self.entry)))

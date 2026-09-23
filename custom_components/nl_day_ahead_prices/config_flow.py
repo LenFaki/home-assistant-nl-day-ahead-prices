@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+from functools import partial
 from typing import Any
 
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.const import CONF_NAME
 from homeassistant.data_entry_flow import FlowResult
+from homeassistant.helpers.selector import SelectSelector, SelectSelectorConfig
 
 from .const import (
     CONF_COUNTRY,
@@ -25,6 +27,7 @@ from .const import (
     CONF_PRICE_RESOLUTION,
     CONF_PRIMARY_PROVIDER,
     CONF_SELECTED_SUPPLIER,
+    CONF_SUPPLIER_TARIFF_UPDATES,
     CONF_VAT,
     DEFAULT_COUNTRY,
     DEFAULT_CURRENCY,
@@ -43,9 +46,12 @@ from .const import (
     NAME,
     PROVIDER_ENERGY_CHARTS,
     PROVIDER_NORD_POOL,
+    SUPPLIER_UPDATES_AUTOMATIC,
+    SUPPLIER_UPDATES_BUNDLED,
 )
 from .price_resolution import PRICE_RESOLUTION_AUTO, PRICE_RESOLUTION_HOURLY, PRICE_RESOLUTION_QUARTER_HOUR
-from .supplier_registry import get_supplier_profiles
+from .remote_registry import STORAGE_KEY
+from .supplier_registry import get_supplier_profiles, supplier_update_mode
 
 CUSTOM_SUPPLIER_KEY = "custom"
 
@@ -112,7 +118,7 @@ class NLDayAheadPricesOptionsFlow(config_entries.OptionsFlow):
         if user_input is not None:
             return self.async_create_entry(title="", data=self._pending_options)
 
-        profiles = await self.hass.async_add_executor_job(get_supplier_profiles)
+        profiles = await self._async_supplier_profiles(self._pending_options)
         selected = str(self._pending_options.get(CONF_SELECTED_SUPPLIER, DEFAULT_SELECTED_SUPPLIER))
         profile = profiles.get(selected)
         if profile is None:
@@ -155,7 +161,7 @@ class NLDayAheadPricesOptionsFlow(config_entries.OptionsFlow):
         return {**self.config_entry.data, **self.config_entry.options}
 
     async def _async_base_options_schema(self, data: dict[str, Any]) -> vol.Schema:
-        profiles = await self.hass.async_add_executor_job(get_supplier_profiles)
+        profiles = await self._async_supplier_profiles(data)
         supplier_choices = {key: profile.name for key, profile in profiles.items()} or {
             CUSTOM_SUPPLIER_KEY: DEFAULT_CUSTOM_SUPPLIER_NAME
         }
@@ -171,6 +177,12 @@ class NLDayAheadPricesOptionsFlow(config_entries.OptionsFlow):
                 ),
                 vol.Optional(CONF_ENABLE_ENTSOE, default=data.get(CONF_ENABLE_ENTSOE, False)): bool,
                 vol.Optional(CONF_ENTSOE_API_TOKEN, default=data.get(CONF_ENTSOE_API_TOKEN, "")): str,
+                vol.Optional(
+                    CONF_SUPPLIER_TARIFF_UPDATES, default=supplier_update_mode(data),
+                ): SelectSelector(SelectSelectorConfig(
+                    options=[SUPPLIER_UPDATES_AUTOMATIC, SUPPLIER_UPDATES_BUNDLED],
+                    translation_key=CONF_SUPPLIER_TARIFF_UPDATES,
+                )),
                 vol.Optional(
                     CONF_SELECTED_SUPPLIER,
                     default=selected_supplier,
@@ -195,6 +207,14 @@ class NLDayAheadPricesOptionsFlow(config_entries.OptionsFlow):
             }
         )
         return schema
+
+    async def _async_supplier_profiles(self, data):
+        """Preview the pending mode without activating it or starting HTTP."""
+        manager = self.hass.data.get(STORAGE_KEY)
+        view = manager.cached_registry if manager is not None else None
+        return await self.hass.async_add_executor_job(
+            partial(get_supplier_profiles, mode=supplier_update_mode(data), remote_view=view)
+        )
 
     def _custom_supplier_schema(self, data: dict[str, Any]) -> vol.Schema:
         """Return schema for custom supplier details."""

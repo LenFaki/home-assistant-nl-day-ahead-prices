@@ -53,7 +53,7 @@ from .providers import (
     ProviderError,
     async_fetch_with_fallback,
 )
-from .supplier_registry import get_supplier_profiles
+from .supplier_registry import get_supplier_profiles, supplier_update_mode
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -71,6 +71,8 @@ class NLDayAheadPricesCoordinator(DataUpdateCoordinator[PriceData]):
         self.entry = entry
         self.store: Store[dict[str, Any]] = Store(hass, CACHE_VERSION, f"{DOMAIN}_{entry.entry_id}")
         merged = {**entry.data, **entry.options}
+        self.configured_options = dict(merged)
+        self.registry_manager = None
         self.runtime_options = {key: merged.get(key, value) for key, value in RUNTIME_DEFAULTS.items()}
         self._remove_interval_listener = None
         self._remove_refresh_listener = None
@@ -163,6 +165,13 @@ class NLDayAheadPricesCoordinator(DataUpdateCoordinator[PriceData]):
             data_completeness=_data_completeness(result, today),
         )
         await self._async_store_cached(data)
+        # Options/registry can change while storage yields; publish using the current view.
+        requested = self._requested_price_resolution()
+        if (result.requested_price_resolution != requested
+                or result.effective_price_resolution != self._effective_price_resolution(requested, dt_util.now())):
+            data.result = self._convert_result_resolution(replace(
+                result, prices_today=result.source_prices_today, prices_tomorrow=result.source_prices_tomorrow,
+            ), dt_util.now())
         data.errors = errors
         return data
 
@@ -282,7 +291,7 @@ class NLDayAheadPricesCoordinator(DataUpdateCoordinator[PriceData]):
         options = self.entry.options
         data = self.entry.data
         selected_supplier = options.get(CONF_SELECTED_SUPPLIER, data.get(CONF_SELECTED_SUPPLIER, DEFAULT_SELECTED_SUPPLIER))
-        profiles = get_supplier_profiles(now)
+        profiles = get_supplier_profiles(now, mode=supplier_update_mode({**data, **options}))
         profile = profiles.get(selected_supplier) or profiles.get(DEFAULT_SELECTED_SUPPLIER)
         if profile is None:
             return "hourly"

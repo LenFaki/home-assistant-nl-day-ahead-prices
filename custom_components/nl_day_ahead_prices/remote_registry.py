@@ -139,7 +139,7 @@ def parse_remote_registry(payload: Any) -> SupplierRegistry:
                 raise ValueError("Overlapping tariff periods")
     return SupplierRegistry(
         parsed.version,
-        {key: tuple(replace(p, registry_source="remote") for p in profiles)
+        {key: tuple(replace(p, registry_source="remote", registry_revision=payload["revision"]) for p in profiles)
          for key, profiles in parsed.suppliers.items()},
         payload["revision"], payload.get("published_at"),
     )
@@ -161,6 +161,10 @@ def decode_registry(raw: bytes) -> dict:
     return json.loads(raw, object_pairs_hook=pairs, parse_constant=invalid_constant)
 
 
+class RegistryHTTPError(ValueError):
+    """A non-success HTTP status, without exposing its body."""
+
+
 class RemoteRegistryManager:
     """Serialize checks, persist before publication, keep failures isolated."""
 
@@ -168,6 +172,11 @@ class RemoteRegistryManager:
         self.session = session
         self.store = store
         self.active = bundled
+        self.bundled = bundled
+        self.cached_registry = None
+        self.source = "bundled"
+        self.cached_source = "cached_remote"
+        self.last_check_result = "never_checked" if enabled else "disabled"
         self.enabled = enabled
         self.now = now or (lambda: datetime.now(timezone.utc))
         self.last_check: datetime | None = None
@@ -175,6 +184,7 @@ class RemoteRegistryManager:
         self.last_update: datetime | None = None
         self.payload: dict | None = None
         self.listeners: set[Callable[[], None]] = set()
+        self.subscriptions: dict[Callable[[], None], bool] = {}
         self._lock = asyncio.Lock()
         self._loaded = False
         self.task = None
@@ -203,12 +213,35 @@ class RemoteRegistryManager:
                     self.last_update = times["last_update"]
                     if candidate is not None and candidate.revision > self.active.revision:
                         self.payload = cached["registry"]
+                        self.cached_registry = candidate
                         if self.enabled:
                             self.active = candidate
+                            self.source = "cached_remote"
                             activate_remote_registry(candidate)
             except (OSError, ValueError, TypeError, KeyError, OverflowError, RecursionError):
                 _LOGGER.warning("Supplier registry cache invalid/unavailable; using bundled data")
             self._loaded = True
+
+    def notify(self):
+        """Publish bounded status changes as well as registry activations."""
+        for listener in tuple(self.listeners):
+            try:
+                listener()
+            except Exception:  # noqa: BLE001 - isolate callbacks from shared transport
+                _LOGGER.exception("Supplier registry listener failed")
+
+    def set_enabled(self, enabled):
+        """Switch shared transport policy; per-entry views stay independent."""
+        if enabled == self.enabled:
+            return
+        self.enabled = enabled
+        self.active = self.bundled
+        self.source = "bundled"
+        if enabled and self.cached_registry is not None and self.cached_registry.revision > self.bundled.revision:
+            self.active = self.cached_registry
+            self.source = self.cached_source
+        activate_remote_registry(self.active if self.source != "bundled" else None)
+        self.last_check_result = "never_checked" if enabled else "disabled"
 
     def _envelope(self, payload, success, updated):
         return {
@@ -222,7 +255,7 @@ class RemoteRegistryManager:
         async with asyncio.timeout(REMOTE_TIMEOUT_SECONDS):
             async with self.session.get(REMOTE_REGISTRY_URL, allow_redirects=False) as response:
                 if response.status != 200:
-                    raise ValueError(f"HTTP {response.status}")
+                    raise RegistryHTTPError()
                 if response.content_length is not None and response.content_length > MAX_REGISTRY_BYTES:
                     raise ValueError("Registry response too large")
                 raw = bytearray()
@@ -238,29 +271,51 @@ class RemoteRegistryManager:
             if not self.enabled or (self.last_check and now - self.last_check < REMOTE_CHECK_INTERVAL):
                 return False
             self.last_check = now
+            stage = "storage_error"
             try:
                 # Persist attempt time before HTTP, including failed checks across restarts.
                 await self.store.async_save(self._envelope(self.payload, self.last_success, self.last_update))
+                stage = "network_error"
                 payload = await self._download()
+                stage = "validation_error"
                 candidate = parse_remote_registry(payload)
-                if candidate.revision <= self.active.revision:
+                newest_revision = max(self.active.revision, self.cached_registry.revision if self.cached_registry else 0)
+                if candidate.revision <= newest_revision:
+                    stage = "storage_error"
                     await self.store.async_save(self._envelope(self.payload, now, self.last_update))
                     self.last_success = now
+                    self.last_check_result = "not_modified" if self.enabled else "disabled"
+                    if (candidate.revision == self.active.revision and self.source == "cached_remote"
+                            and payload == self.payload):
+                        self.source = self.cached_source = "remote"
+                    self.notify()
                     return False
+                stage = "storage_error"
                 await self.store.async_save(self._envelope(payload, now, now))
             except (aiohttp.ClientError, TimeoutError, OSError, ValueError, TypeError, KeyError, OverflowError, RecursionError) as err:
                 # Do not log payloads or response bodies, including remotely supplied strings.
                 _LOGGER.warning("Supplier registry check failed (%s); retaining local data", type(err).__name__)
+                self.last_check_result = (
+                    "http_error" if isinstance(err, RegistryHTTPError) else
+                    "network_error" if isinstance(err, (aiohttp.ClientError, TimeoutError)) else
+                    "validation_error" if stage != "storage_error" and isinstance(
+                        err, (ValueError, TypeError, KeyError, OverflowError, RecursionError)
+                    ) else stage
+                )
+                if not self.enabled:
+                    self.last_check_result = "disabled"
+                self.notify()
                 return False
             self.payload = payload
             self.last_success = self.last_update = now
-            self.active = candidate
-            activate_remote_registry(candidate)
-            for listener in tuple(self.listeners):
-                try:
-                    listener()
-                except Exception:  # noqa: BLE001 - isolate entity callbacks from the shared update loop
-                    _LOGGER.exception("Supplier registry listener failed")
+            self.cached_registry = candidate
+            self.cached_source = "remote"
+            self.last_check_result = "success" if self.enabled else "disabled"
+            if self.enabled:
+                self.active = candidate
+                self.source = "remote"
+                activate_remote_registry(candidate)
+            self.notify()
             return True
 
     async def async_run(self):
@@ -305,23 +360,39 @@ async def async_get_manager(hass):
         hass.data[STORAGE_KEY] = RemoteRegistryManager(
             async_get_clientsession(hass),
             ConfirmedStore(Store(hass, 1, STORAGE_KEY, atomic_writes=True), (HomeAssistantError, NotImplementedError)),
-            load_registry(),
+            load_registry(), enabled=False,
         )
     manager = hass.data[STORAGE_KEY]
     await manager.async_load()
     return manager
 
 
-def async_subscribe(hass, manager, listener):
+def async_update_subscription(hass, manager, listener, enabled):
+    """Any Automatic entry keeps the one shared updater alive."""
+    manager.subscriptions[listener] = enabled
+    _sync_subscriptions(hass, manager)
+    manager.notify()
+
+
+def _sync_subscriptions(hass, manager):
+    enabled = any(manager.subscriptions.values())
+    manager.set_enabled(enabled)
+    if enabled and manager.task is None:
+        manager.task = hass.async_create_background_task(manager.async_run(), "EnerPrice supplier registry")
+    elif not enabled and manager.task is not None:
+        manager.task.cancel()
+        manager.task = None
+
+
+def async_subscribe(hass, manager, listener, *, enabled=True):
     """Subscribe after setup; the background task does not gate HA startup."""
     manager.listeners.add(listener)
-    if manager.task is None:
-        manager.task = hass.async_create_background_task(manager.async_run(), "EnerPrice supplier registry")
+    async_update_subscription(hass, manager, listener, enabled)
 
     def unsubscribe():
         manager.listeners.discard(listener)
-        if not manager.listeners and manager.task is not None:
-            manager.task.cancel()
-            manager.task = None
+        manager.subscriptions.pop(listener, None)
+        _sync_subscriptions(hass, manager)
+        manager.notify()
 
     return unsubscribe

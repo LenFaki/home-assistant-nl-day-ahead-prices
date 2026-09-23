@@ -51,6 +51,8 @@ class SupplierProfile:
     source_type: str = "unknown"
     registry_version: int | None = None
     registry_source: str = "legacy"
+    registry_revision: int | None = None
+    tariff_registry_mode: str = "automatic"
 
     def __post_init__(self) -> None:
         """Populate v2 aliases for profiles constructed with the v1 schema."""

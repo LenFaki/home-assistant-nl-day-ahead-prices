@@ -5,7 +5,8 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from .const import DOMAIN
+from .const import DOMAIN, MARKET_PROVIDER_DEFAULTS, RUNTIME_DEFAULTS, SUPPLIER_UPDATES_AUTOMATIC
+from .supplier_registry import supplier_update_mode
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
@@ -25,10 +26,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     registry_manager = await async_get_manager(hass)
     coordinator = NLDayAheadPricesCoordinator(hass, entry)
+    coordinator.registry_manager = registry_manager
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, _platforms())
     await coordinator.async_start()
-    entry.async_on_unload(async_subscribe(hass, registry_manager, coordinator.registry_updated))
+    entry.async_on_unload(async_subscribe(
+        hass, registry_manager, coordinator.registry_updated,
+        enabled=supplier_update_mode({**entry.data, **entry.options}) == SUPPLIER_UPDATES_AUTOMATIC,
+    ))
     from .services import async_register_services
 
     async_register_services(hass)
@@ -53,7 +58,23 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Reload after options changes."""
+    """Apply local settings without fetching; reload only for provider changes."""
+    from .remote_registry import async_update_subscription
+
+    coordinator = hass.data[DOMAIN][entry.entry_id]
+    previous = coordinator.configured_options
+    current = {**entry.data, **entry.options}
+    if all(previous.get(key, default) == current.get(key, default)
+           for key, default in MARKET_PROVIDER_DEFAULTS.items()):
+        coordinator.configured_options = current
+        for key, default in RUNTIME_DEFAULTS.items():
+            if previous.get(key, default) != current.get(key, default):
+                coordinator.runtime_options[key] = current.get(key, default)
+        async_update_subscription(
+            hass, coordinator.registry_manager, coordinator.registry_updated,
+            supplier_update_mode(current) == SUPPLIER_UPDATES_AUTOMATIC,
+        )
+        return
     await hass.config_entries.async_reload(entry.entry_id)
 
 
