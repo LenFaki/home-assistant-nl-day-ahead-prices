@@ -10,6 +10,7 @@ from homeassistant.util import dt as dt_util
 
 from .const import CONF_CHART_HELPERS, CONF_ENTSOE_API_TOKEN, CONF_SELECTED_SUPPLIER, DOMAIN
 from .sensor import _selected_supplier_profile, _v2_data
+from .supplier_registry import tariff_metadata
 
 
 async def async_get_config_entry_diagnostics(
@@ -59,6 +60,7 @@ async def async_get_config_entry_diagnostics(
             "resolution": data.result.effective_price_resolution,
         },
         "supplier_profile_version": supplier.profile_version,
+        "supplier_tariff": {"supplier_id": supplier.key, **tariff_metadata(supplier, dt_util.now())},
         "dashboard_helper_status": bool(coordinator.runtime_options[CONF_CHART_HELPERS]),
         "resolution_status": {
             "requested": data.result.requested_price_resolution,

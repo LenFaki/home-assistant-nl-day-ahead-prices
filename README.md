@@ -278,9 +278,36 @@ The original source prices remain available through:
 
 ### Supplier Tariffs
 
-Supplier-specific tariff profiles are stored in
-`custom_components/nl_day_ahead_prices/supplier_profiles.json`, not hard-coded
-inside Python. Each profile stores:
+Market/day-ahead prices are fetched automatically. Supplier fees are separate:
+EnerPrice bundles an offline tariff registry in `supplier_tariffs.json`, with
+validity periods, sources and verification dates. The legacy
+`supplier_profiles.json` remains a fallback for compatibility.
+
+Supplier tariffs are periodically verified against published supplier
+information. EnerPrice exposes the verification date and source so users
+can assess tariff freshness. Some retained values still require verification;
+the profiles are not guaranteed to match every individual contract.
+
+Core sensor attributes (including Selected Supplier) expose
+`supplier_tariff_status`, `supplier_tariff_valid_from`,
+`supplier_tariff_valid_until`, `supplier_tariff_last_verified`,
+`supplier_tariff_source_type`, `supplier_tariff_source_url`,
+`supplier_tariff_age_days`, and `supplier_settlement_resolution`.
+Existing `supplier_purchase_fee` and `supplier_monthly_fee` remain available.
+
+Freshness is `current` through 60 days, `verification_recommended` through 120
+days, and `stale` thereafter; missing verification is `unknown`. These status
+attributes warn about freshness without disabling prices. Custom supplier
+settings take precedence and report `custom`. Tibber's new standard monthly
+fee may not apply to older contracts; enter your own contract values when needed.
+
+No tariff downloads occur at runtime. A future version may update verified
+profiles remotely without an EnerPrice release. See the
+[registry architecture and source review](docs/supplier-tariff-registry.md)
+for schema, VAT semantics, source limitations and future fallback order.
+
+Supplier-specific tariffs are stored in the bundled registry rather than
+hard-coded inside Python. The compatibility profile exposes:
 
 - display name
 - monthly electricity fee

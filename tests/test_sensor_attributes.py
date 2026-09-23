@@ -150,3 +150,22 @@ def test_combined_all_in_today_and_tomorrow(sensor_module, minutes, extended):
     assert [item["time"] for item in combined] == [item["time"] for item in attrs["prices"]]
     timestamps = [datetime.fromisoformat(item["time"]).timestamp() for item in combined]
     assert all(b - a == minutes * 60 for a, b in zip(timestamps, timestamps[1:], strict=False))
+
+
+@pytest.mark.parametrize("extended", [False, True])
+def test_registry_used_by_existing_sensor_and_custom_options(sensor_module, extended):
+    sensor = make_sensor(sensor_module, day_prices("2026-09-08", 60), extended)
+    sensor.entry.options = {"selected_supplier": "tibber"}
+    attrs = sensor.extra_state_attributes
+    assert attrs["supplier_purchase_fee"] == 0.018
+    assert attrs["supplier_tariff_valid_from"] == "2026-09-01"
+    assert attrs["supplier_registry_source"] == "bundled"
+    assert attrs["supplier_settlement_resolution"] == "quarter_hour"
+    assert attrs["all_in_prices"][0]["price"] == pytest.approx(0.1 * 1.21 + 0.1108 + 0.018)
+    sensor.entry.options = {"selected_supplier": "custom", "custom_purchase_fee_electricity": 0.05,
+                            "custom_purchase_fee_includes_vat": False}
+    custom = sensor.extra_state_attributes
+    assert custom["supplier_tariff_status"] == "custom"
+    assert custom["supplier_purchase_fee"] == pytest.approx(0.0605)
+    assert custom["supplier_tariff_last_verified"] is None
+    assert custom["all_in_prices"][0]["price"] == pytest.approx(0.1 * 1.21 + 0.1108 + 0.0605)

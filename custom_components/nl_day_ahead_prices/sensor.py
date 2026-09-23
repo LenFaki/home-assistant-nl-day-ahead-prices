@@ -79,7 +79,8 @@ from .price_resolution import (
     find_cheapest_consecutive_block,
 )
 from .scoring import calculate_day_score, calculate_opportunity, calculate_price_score
-from .supplier_profiles import SupplierProfile, load_supplier_profiles, supplier_profile_to_dict
+from .supplier_profiles import SupplierProfile, supplier_profile_to_dict
+from .supplier_registry import get_supplier_tariff, tariff_metadata
 
 EUR_PER_KWH = f"EUR/{UnitOfEnergy.KILO_WATT_HOUR}"
 _LOGGER = logging.getLogger(__name__)
@@ -204,9 +205,9 @@ def _selected_supplier_profile(entry: ConfigEntry) -> SupplierProfile:
     if key == "custom":
         return _custom_supplier_profile(entry)
 
-    profiles = load_supplier_profiles()
-    if key in profiles:
-        return profiles[key]
+    profile = get_supplier_tariff(key, dt_util.now())
+    if profile is not None:
+        return profile
 
     _LOGGER.warning("Configured supplier profile %s is unavailable; falling back to custom supplier", key)
     return _custom_supplier_profile(entry)
@@ -768,6 +769,7 @@ class NLDayAheadPriceSensor(CoordinatorEntity[NLDayAheadPricesCoordinator], Sens
             else None,
             "selected_supplier": supplier_profile.key,
             "selected_supplier_name": supplier_profile.name,
+            **tariff_metadata(supplier_profile, dt_util.now()),
             "supplier_purchase_fee": round(calculate_supplier_fee(supplier_profile, _vat(self.entry)), 6),
             "supplier_monthly_fee": round(calculate_monthly_fee(supplier_profile), 2),
             "energy_tax": _energy_tax(self.entry),

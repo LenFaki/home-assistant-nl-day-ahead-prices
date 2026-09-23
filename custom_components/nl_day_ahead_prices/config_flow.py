@@ -45,7 +45,7 @@ from .const import (
     PROVIDER_NORD_POOL,
 )
 from .price_resolution import PRICE_RESOLUTION_AUTO, PRICE_RESOLUTION_HOURLY, PRICE_RESOLUTION_QUARTER_HOUR
-from .supplier_profiles import load_supplier_profiles
+from .supplier_registry import get_supplier_profiles
 
 CUSTOM_SUPPLIER_KEY = "custom"
 
@@ -112,7 +112,7 @@ class NLDayAheadPricesOptionsFlow(config_entries.OptionsFlow):
         if user_input is not None:
             return self.async_create_entry(title="", data=self._pending_options)
 
-        profiles = await self.hass.async_add_executor_job(load_supplier_profiles)
+        profiles = await self.hass.async_add_executor_job(get_supplier_profiles)
         selected = str(self._pending_options.get(CONF_SELECTED_SUPPLIER, DEFAULT_SELECTED_SUPPLIER))
         profile = profiles.get(selected)
         if profile is None:
@@ -155,7 +155,7 @@ class NLDayAheadPricesOptionsFlow(config_entries.OptionsFlow):
         return {**self.config_entry.data, **self.config_entry.options}
 
     async def _async_base_options_schema(self, data: dict[str, Any]) -> vol.Schema:
-        profiles = await self.hass.async_add_executor_job(load_supplier_profiles)
+        profiles = await self.hass.async_add_executor_job(get_supplier_profiles)
         supplier_choices = {key: profile.name for key, profile in profiles.items()} or {
             CUSTOM_SUPPLIER_KEY: DEFAULT_CUSTOM_SUPPLIER_NAME
         }
