@@ -21,10 +21,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     _LOGGER.info("Setting up EnerPrice config entry %s", entry.entry_id)
     await hass.async_add_executor_job(get_supplier_profiles)
+    from .remote_registry import async_get_manager, async_subscribe
+
+    registry_manager = await async_get_manager(hass)
     coordinator = NLDayAheadPricesCoordinator(hass, entry)
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, _platforms())
     await coordinator.async_start()
+    entry.async_on_unload(async_subscribe(hass, registry_manager, coordinator.registry_updated))
     from .services import async_register_services
 
     async_register_services(hass)

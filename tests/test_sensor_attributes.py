@@ -1,6 +1,7 @@
 """Public sensor attribute regressions with lightweight HA entity doubles."""
 
 import importlib.util
+import json
 import sys
 from dataclasses import make_dataclass
 from datetime import datetime, timedelta, timezone
@@ -14,6 +15,8 @@ import pytest
 from custom_components.nl_day_ahead_prices.cache import get_cached_prices_for_date
 from custom_components.nl_day_ahead_prices.const import CONF_EXTENDED_ATTRIBUTES, RUNTIME_DEFAULTS
 from custom_components.nl_day_ahead_prices.models import PriceData, PriceEntry, ProviderResult
+from custom_components.nl_day_ahead_prices.remote_registry import parse_remote_registry
+from custom_components.nl_day_ahead_prices.supplier_registry import activate_remote_registry
 
 
 @pytest.fixture
@@ -70,6 +73,29 @@ def make_sensor(module, prices, extended=False, cached=False):
     entry = SimpleNamespace(entry_id="test", data={}, options={})
     description = module.NLPriceSensorDescription(key="average_price_today", value_fn=module._average_today)
     return module.NLDayAheadPriceSensor(coordinator, entry, description)
+
+
+def test_remote_activation_preserves_all_dashboard_arrays(sensor_module):
+    sensor = make_sensor(sensor_module, day_prices("2026-09-08", 15))
+    sensor.entry.options["selected_supplier"] = "anwb_energie"
+    sensor.coordinator.data.result.prices_tomorrow = day_prices("2026-09-09", 15)
+    before = sensor.extra_state_attributes
+    candidate = json.loads((Path(__file__).parents[1] / "registry/supplier_tariffs.json").read_text())
+    candidate["revision"] = 2
+    candidate["suppliers"]["anwb_energie"]["tariffs"][0]["purchase_fee_import"] = 0.04
+    activate_remote_registry(parse_remote_registry(candidate))
+    try:
+        after = sensor.extra_state_attributes
+        for key in ("prices", "prices_today", "prices_tomorrow"):
+            assert after[key] == before[key]
+        for key in ("all_in_prices", "all_in_prices_today", "all_in_prices_tomorrow"):
+            assert len(after[key]) == len(before[key])
+            for old, new in zip(before[key], after[key], strict=True):
+                assert set(new) == {"time", "price"}
+                assert new["time"] == old["time"]
+                assert new["price"] - old["price"] == pytest.approx(0.022)
+    finally:
+        activate_remote_registry(None)
 
 
 def day_prices(day, minutes):

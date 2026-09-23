@@ -1,9 +1,9 @@
 """Offline tariff selection and compatibility adapter.
 
 Load once in HA's executor before entities are created. Date selection is never
-cached, so midnight changes do not need a restart. Future remote registries must
-pass the same validation before insertion between custom and bundled data;
-legacy profiles remain the final fallback. No networking belongs here.
+cached, so midnight changes do not need a restart. Validated remote snapshots
+overlay bundled data; custom values win and legacy profiles remain the final
+fallback. Transport, persistence and strict remote validation live separately.
 """
 
 from __future__ import annotations
@@ -33,6 +33,17 @@ _LOGGER = logging.getLogger(__name__)
 class SupplierRegistry:
     version: int
     suppliers: dict[str, tuple[SupplierProfile, ...]]
+    revision: int = 1
+    published_at: str | None = None
+
+
+_remote_registry: SupplierRegistry | None = None
+
+
+def activate_remote_registry(candidate: SupplierRegistry | None) -> None:
+    """Swap a fully validated snapshot on the HA event loop, without yielding."""
+    global _remote_registry
+    _remote_registry = candidate
 
 
 def market_date(value: date | datetime | None = None) -> date:
@@ -63,6 +74,9 @@ def parse_registry(payload: Any) -> SupplierRegistry:
         raise ValueError("Unsupported supplier registry version")
     if payload.get("country") != "NL" or payload.get("currency") != "EUR":
         raise ValueError("Registry must use NL and EUR")
+    revision = payload.get("revision", 1)
+    if type(revision) is not int or revision < 1:
+        raise ValueError("Invalid bundled registry revision")
     suppliers = payload.get("suppliers")
     if not isinstance(suppliers, dict):
         raise ValueError("suppliers must be an object")
@@ -147,7 +161,7 @@ def parse_registry(payload: Any) -> SupplierRegistry:
                 )
             )
         parsed[key] = tuple(profiles)
-    return SupplierRegistry(1, parsed)
+    return SupplierRegistry(1, parsed, revision)
 
 
 @lru_cache(maxsize=1)
@@ -157,7 +171,7 @@ def load_registry() -> SupplierRegistry:
         return parse_registry(json.loads(REGISTRY_FILE.read_text(encoding="utf-8")))
     except (OSError, ValueError, TypeError, KeyError) as err:
         _LOGGER.warning("Supplier registry unavailable; using legacy profiles: %s", err)
-        return SupplierRegistry(1, {})
+        return SupplierRegistry(1, {}, revision=0)
 
 
 def select_tariff(
@@ -181,11 +195,15 @@ def select_tariff(
 def get_supplier_profiles(on: date | datetime | None = None) -> dict[str, SupplierProfile]:
     """Keep supplier IDs and legacy fields while resolving today's registry."""
     profiles = dict(load_supplier_profiles())
-    registry = load_registry()
-    for key in registry.suppliers:
-        selected = select_tariff(registry, key, on)
-        if selected is not None and key != "custom":
-            profiles[key] = selected
+    bundled = load_registry()
+    registries = [bundled]
+    if _remote_registry is not None and _remote_registry.revision > bundled.revision:
+        registries.append(_remote_registry)
+    for registry in registries:
+        for key in registry.suppliers:
+            selected = select_tariff(registry, key, on)
+            if selected is not None and key != "custom":
+                profiles[key] = selected
     return profiles
 
 

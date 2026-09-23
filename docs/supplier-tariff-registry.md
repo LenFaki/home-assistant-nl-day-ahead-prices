@@ -100,12 +100,86 @@ fee stays EUR 0.028 excluding VAT (EUR 0.03388 at 21%), while its export VAT fla
 remains independent. Zonnebonus is not added to Zonneplan's fee. The custom
 supplier, legacy fallback file and automatic release workflow are unchanged.
 
-## Future remote registry
+## Remote registry core (PR1)
 
-Future order: custom override, validated cached remote registry, bundled
-registry, legacy fallback. Reuse `parse_registry` before accepting a downloaded
-candidate; pin supported schema/country/currency, bound download size/time,
-persist atomically and retain the last known valid registry on failure. Keep
-transport and cache management outside price calculations. Add authenticated
-provenance and field-level verification before trusting remote updates.
-No downloader, GitHub dependency or remote configuration is implemented here.
+The bundled registry remains installed and usable without network access.
+`registry/supplier_tariffs.json` publishes the same initial data as a public,
+revisioned snapshot. This is a reviewed data distribution mechanism, not live
+supplier verification; freshness continues to refer to each tariff's existing
+`last_verified`, not the time a file was downloaded.
+
+Precedence is custom user configuration, newer validated cached/remote registry,
+bundled registry, then existing legacy fallback. If a remote supplier has no
+period covering an interval's local date, the bundled period is tried before
+legacy data. Remote custom records are ignored. The existing per-PriceEntry
+Europe/Amsterdam date selection and `{time, price}` arrays remain unchanged.
+
+### Startup and storage
+
+Setup warms bundled/legacy files through HA's executor, loads and validates the
+local cache, then starts normally. It never waits for a registry HTTP request.
+One manager is shared across config entries, separately from the coordinator
+map. Local cache initialization and updates share an asyncio lock.
+
+The cache uses Home Assistant `Store`, storage version 1, key
+`nl_day_ahead_prices_supplier_registry`, with atomic writes enabled. Nothing is
+written to the integration installation directory. It contains the complete
+remote envelope (`schema_version`, `revision`, optional `published_at`, country,
+currency and suppliers), plus UTC `last_check`, `last_success` and `last_update`.
+`last_check` includes failed attempts; `last_success` means a valid response;
+`last_update` means an accepted newer revision. Cache writes are read back before
+activation because HA Store may log a write error without raising it.
+
+A corrupt/incompatible cache is warned about and ignored. A valid cached revision
+4 is immediately used over bundled revision 1; a failed check leaves 4 active.
+A newer bundled revision wins over older cache. Legacy bundled format without
+an explicit revision means revision 1.
+
+### Checks and activation
+
+`REMOTE_REGISTRY_URL` is the single default URL constant pointing at this
+repository's public raw `main/registry/supplier_tariffs.json`. A HA-managed
+background task checks independently of electricity-price refreshes. The
+`REMOTE_CHECK_INTERVAL` is 24 hours; persisted attempt timestamps avoid repeated
+downloads on restart, including after failures. The task is cancelled after the
+last entry unloads. PR1 defaults to enabled; an internal enable flag leaves room
+for PR2 without introducing a user-facing option now.
+
+HTTP uses HA's shared aiohttp session, a 20-second total timeout and a 1 MiB body
+limit. Network/DNS failures, timeouts, HTTP errors, invalid JSON, invalid schema
+and storage failures retain local data and do not mark the price coordinator
+unavailable. No retries occur inside a check; the next daily check retries.
+An unwritable cache prevents activation and may prevent restart throttling;
+the in-memory attempt time still throttles the running process.
+
+`schema_version` describes compatibility; `revision` describes data age. Reject
+unsupported schemas regardless of revision. Ignore lower and equal revisions
+without replacing the active snapshot or cached tariff payload (check timestamps
+are still persisted). For a higher revision: fully validate, persist, atomically
+swap the process-wide snapshot on the HA event loop, then notify coordinators.
+Callbacks clear derived-analysis caches, reconvert existing raw price intervals,
+adjust the interval notification schedule, and notify entities without requesting
+market data. Readers never see a partly constructed registry. A single lock
+serializes concurrent checks across entries.
+
+### Validation and privacy
+
+The strict remote validator rejects the complete candidate on structural errors:
+missing suppliers/fields, invalid enums/types/dates/URLs, non-finite or excessive
+fees, invalid country/currency, unsupported versions, reversed or overlapping
+inclusive periods and duplicate JSON keys. All eleven built-in suppliers are
+required. Shared bundled parsing and selection remain backwards compatible.
+Limits are +/- EUR 5/kWh (import nonnegative), EUR 0-1000/month, 100 suppliers and
+100 periods per supplier. Realistic negative export fees remain valid.
+
+Only public registry data is requested. No supplier selection, HA IDs, entity
+data, consumption, location, settings or telemetry are sent. Standard network
+metadata such as the source IP is necessarily visible to GitHub. Transport uses
+HTTPS and the trusted repository; this PR does not add cryptographic signing or
+independent verification of suppliers' commercial claims.
+
+The shared active snapshot follows the integration's existing process-wide
+profile API, assuming one Home Assistant instance per process. No config-entry
+migration, new entities/services/options, scraping, audit workflow or release is
+part of PR1. See [maintainer workflow](../registry/README.md) for publishing a
+reviewed higher revision while preserving history and source quality.

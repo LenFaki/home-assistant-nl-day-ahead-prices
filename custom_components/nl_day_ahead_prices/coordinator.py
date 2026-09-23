@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from dataclasses import replace
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -89,6 +90,25 @@ class NLDayAheadPricesCoordinator(DataUpdateCoordinator[PriceData]):
 
     async def _async_scheduled_refresh(self, now: datetime) -> None:
         await self.async_request_refresh()
+
+    def registry_updated(self) -> None:
+        """Recompute from source intervals, without a market-price API request."""
+        self.analysis_cache.clear()
+        if self.data is not None:
+            source = replace(
+                self.data.result,
+                prices_today=self.data.result.source_prices_today,
+                prices_tomorrow=self.data.result.source_prices_tomorrow,
+            )
+            self.data = replace(self.data, result=self._convert_result_resolution(source, dt_util.now()))
+        if self._remove_interval_listener is not None:
+            self._remove_interval_listener()
+            resolution = self._effective_price_resolution(self._requested_price_resolution(), dt_util.now())
+            self._remove_interval_listener = async_track_utc_time_change(
+                self.hass, self._async_interval_boundary,
+                minute=[0, 15, 30, 45] if resolution == "quarter_hour" else 0, second=0,
+            )
+        self.async_update_listeners()
 
     async def _async_interval_boundary(self, now: datetime) -> None:
         """Notify entities at a market interval boundary."""

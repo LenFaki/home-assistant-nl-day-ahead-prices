@@ -109,3 +109,26 @@ async def test_boundary_updates_do_not_fetch_and_hourly_schedule_is_stable(runti
     await coordinator.async_stop()
     assert coordinator._remove_refresh_listener is None
     assert coordinator._remove_interval_listener is None
+
+
+async def test_registry_activation_recalculates_raw_data_without_fetch(runtime):
+    from custom_components.nl_day_ahead_prices.models import PriceData, PriceEntry, ProviderResult
+
+    coordinator, _, track, now = runtime
+    raw = [PriceEntry(now.replace(minute=0) + timedelta(minutes=15 * i), 0.1 + i * 0.01) for i in range(4)]
+    coordinator.data = PriceData(
+        ProviderResult("test", [PriceEntry(raw[0].time, 0.115)], [],
+                       raw_prices_today=raw, raw_prices_tomorrow=[], raw_price_resolution="quarter_hour"),
+        False, now,
+    )
+    await coordinator.async_start()
+    coordinator.entry.options["price_resolution"] = "quarter_hour"
+    coordinator.analysis_cache["old"] = object()
+    coordinator.registry_updated()
+    assert coordinator.analysis_cache == {}
+    assert coordinator.data.result.prices_today == raw
+    assert coordinator.data.result.effective_price_resolution == "quarter_hour"
+    assert track.call_args.kwargs == {"minute": [0, 15, 30, 45], "second": 0}
+    coordinator.async_update_listeners.assert_called_once()
+    coordinator.async_request_refresh.assert_not_awaited()
+    await coordinator.async_stop()
