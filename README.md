@@ -140,6 +140,9 @@ automation:
 Release notes are available in [CHANGELOG.md](CHANGELOG.md) and on the GitHub
 releases page.
 
+Maintainers: see [the release workflow](docs/releases.md) for automatic releases
+after successful main CI, version-bump requirements and manual recovery.
+
 ## Installation
 
 ### HACS
