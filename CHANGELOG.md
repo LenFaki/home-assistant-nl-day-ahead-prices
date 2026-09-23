@@ -2,6 +2,21 @@
 
 All notable changes to **EnerPrice** are documented here.
 
+## 2.1.1
+
+### Fixed
+
+- Corrected the current SamSam import purchase fee to EUR 0.021118/kWh including VAT; retained its historical tariff.
+- Corrected easyEnergy settlement to quarter-hour prices and confirmed its VAT-inclusive import and monthly fees.
+- Corrected Vattenfall's observed export sales fee to EUR 0/kWh from its official public information, preserving history and secondary import/monthly values.
+
+### Improved
+
+- Reviewed official supplier sources on 2026-09-23, including ANWB's monthly fee and EnergyZero's VAT-exclusive fee calculation.
+- Documented partial verification and export-model limitations; incomplete records retain conservative verification dates.
+- Observation-date transitions do not claim a proven contract effective date. The registry remains bundled and offline-first.
+- No changes to entity IDs, services, configuration or dashboard attribute schemas.
+
 ## 2.1.0
 
 ### Added
