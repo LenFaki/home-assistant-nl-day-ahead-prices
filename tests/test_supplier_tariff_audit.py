@@ -46,7 +46,6 @@ def test_confirmed_import_and_settlement(supplier, fee, vat_included, monthly, r
     [
         ("samsam", 0.0339, 0.021118, 0.0339, 0.0339, "hourly", "hourly"),
         ("easy_energy", 0.0218, 0.02178, 0.0218, 0.0218, "hourly", "quarter_hour"),
-        ("vattenfall", 0.0255, 0.0255, 0.0255, 0, "hourly", "hourly"),
     ],
 )
 def test_observation_boundaries(
@@ -88,6 +87,7 @@ def test_incomplete_records_are_not_promoted_to_current():
         ("zonneplan", 0.02, 0.02, 6.25),
         ("vandebron", 0.0257, 0.0257, 6.25),
         ("eneco", 0.0241, 0.0241, 7),
+        ("vattenfall", 0.0255, 0.0255, 7.95),
         ("greenchoice", 0.0224, 0.0224, 7.5),
         ("pure_energie", 0.01699, -0.01299, 6.05),
         ("energyzero", 0.028, 0.0224, 7.5),
@@ -100,6 +100,22 @@ def test_unverified_amounts_are_preserved(supplier, import_fee, export_fee, mont
     assert profile.fixed_monthly_fee_electricity == monthly
     assert profile.sell_fee_includes_vat
     assert calculate_supplier_export_fee(profile, 0.21) == pytest.approx(export_fee)
+
+
+def test_vattenfall_keeps_single_unverified_legacy_record():
+    periods = registry.load_registry().suppliers["vattenfall"]
+    assert len(periods) == 1
+    profile = periods[0]
+    assert profile.valid_from is None
+    assert profile.valid_until is None
+    assert profile.source_type == "secondary"
+    assert profile.last_verified == "2026-07-02"
+    assert registry.tariff_metadata(profile, AUDIT_DATE)["supplier_tariff_status"] == "verification_recommended"
+    for day in (date(2026, 9, 22), AUDIT_DATE, date(2026, 9, 24)):
+        assert registry.get_supplier_tariff("vattenfall", day) == profile
+        assert profile.purchase_fee_import == 0.0255
+        assert profile.purchase_fee_export == 0.0255
+        assert profile.fixed_monthly_fee_electricity == 7.95
 
 
 def test_bundled_json_validity_periods_and_versions(caplog):

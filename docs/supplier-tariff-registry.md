@@ -70,10 +70,10 @@ historical contract prices.
 | Vandebron | A generic EUR 0.02 example does not establish a universal fee. EUR 0.0257 and existing source date retained; verify the individual tariff sheet. |
 | SamSam | [Official tariffs](https://samsam.nu/groene-energie) confirms EUR 0.021118/kWh including VAT, EUR 7.99/month per connection and hourly electricity. Corrected import from the observation date; historical EUR 0.0339 remains intact. Export EUR 0.0339 is unverified legacy data, not an official current amount. |
 | Eneco | [Dynamic tariffs](https://www.eneco.nl/duurzame-energie/dynamisch-energiecontract/dynamische-tarieven/) explains the mechanism without establishing exact universal current fees. EUR 0.0241/kWh and EUR 7/month retain secondary provenance and their old verification date. |
-| Vattenfall | [FlexPrijs with solar panels](https://www.vattenfall.nl/energie/dynamisch-energiecontract/zonnepanelen/) explicitly gives a current sales fee of EUR 0/kWh and hourly pricing. A new observation-date period corrects export only. Import EUR 0.0255 and monthly EUR 7.95 remain secondary/unverified; no full-record verification claim. Sales fees may change. |
+| Vattenfall | [FlexPrijs with solar panels](https://www.vattenfall.nl/energie/dynamisch-energiecontract/zonnepanelen/) reviewed on 2026-09-23 did not establish a complete replacement tariff, its actual effective date and the exact mapping to EnerPrice's export-fee semantics. The single legacy record remains secondary/unverified: EUR 0.0255/kWh import and export, EUR 7.95/month. No new validity boundary or verification date. |
 | Pure Energie | [Fee explanation](https://pure-energie.nl/kennisbank/inkoop-en-verkoopvergoeding-dynamisch-contract/) explains the components, but does not establish current universal amounts. Retain contributed values, including the export sign, pending contract verification. |
 
-For easyEnergy, Greenchoice, SamSam and Vattenfall newly observed values take effect in the registry
+For easyEnergy, Greenchoice and SamSam newly observed values take effect in the registry
 on the review date, rather than backdating an unknown effective date. No
 unverified EnergyZero legacy value is promoted into a purported pre-2026 tariff.
 
@@ -83,8 +83,8 @@ The SamSam import/monthly/resolution observation is dated 2026-09-23 in notes.
 Its `last_verified` remains 2026-07-02: setting it to the observation date would
 incorrectly report the entire record, including unverified export, as current.
 The official source identifies the confirmed fields, not every retained field.
-Vattenfall retains a secondary record source because its import/monthly amounts
-remain secondary; notes cite the official evidence for the export correction.
+Vattenfall retains its single secondary legacy record, all amounts and its old
+verification date. Its observation date is not used as a tariff validity boundary.
 
 EnerPrice models export fees as a flat per-kWh deduction. easyEnergy's
 [tariff sheet](https://www.easyenergy.com/media/nsfhjtjd/tarievenblad.pdf)
