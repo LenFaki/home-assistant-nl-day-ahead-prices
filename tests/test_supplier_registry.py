@@ -198,3 +198,26 @@ def test_required_fields_and_version():
     with pytest.raises(ValueError):
         registry.parse_registry(raw)
     assert json.loads(registry.REGISTRY_FILE.read_text())["registry_version"] == 1
+
+
+def test_interval_tariffs_use_local_date_and_per_call_cache(monkeypatch):
+    from custom_components.nl_day_ahead_prices import calculations
+    from custom_components.nl_day_ahead_prices.models import PriceEntry
+
+    profile = registry.get_supplier_tariff("tibber", date(2026, 8, 31))
+    lookup = Mock(wraps=registry.get_supplier_tariff)
+    monkeypatch.setattr(calculations, "get_supplier_tariff", lookup)
+    prices = [PriceEntry(datetime(2026, 8, 31, 21, 45, tzinfo=timezone.utc) + timedelta(minutes=i * 15), 0.1)
+              for i in range(4)]
+    attrs = calculations.build_all_in_price_attributes_for_supplier(prices, 0.1108, profile, 0.21)
+    assert attrs[0]["price"] == pytest.approx(0.2566)
+    assert [item["price"] for item in attrs[1:]] == pytest.approx([0.2498] * 3)
+    assert lookup.call_count == 2
+    assert [call.args[1] for call in lookup.call_args_list] == [date(2026, 8, 31), date(2026, 9, 1)]
+    calculations.build_all_in_price_attributes_for_supplier(prices, 0.1108, profile, 0.21)
+    assert lookup.call_count == 4
+    custom = replace(profile, key="custom", purchase_fee_electricity=0.04)
+    lookup.reset_mock()
+    values = calculations.build_all_in_price_attributes_for_supplier(prices, 0.1108, custom, 0.21)
+    lookup.assert_not_called()
+    assert [item["price"] for item in values] == pytest.approx([0.2718] * 4)

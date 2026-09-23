@@ -21,9 +21,12 @@ tariff. The schema validator rejects a malformed registry as a unit.
 
 An executor-backed setup/config flow loads the JSON once. Entity reads and
 date selection use in-memory data. Selection is not cached by supplier alone:
-the current local date is evaluated again, including after midnight. The active
-current-date profile is used for all available price intervals, as before;
-these arrays are not historical billing calculations for each interval's date.
+the current local date is evaluated again, including after midnight. Each all-in
+price interval uses the tariff valid on that interval's Europe/Amsterdam local
+date. Tomorrow's prices therefore already reflect a tariff change effective
+tomorrow, even before midnight. Calculations reuse selected profiles per date
+within the call only. Custom settings apply unchanged to every interval; entity
+metadata continues to describe the supplier tariff valid now.
 
 ## Amounts and compatibility
 

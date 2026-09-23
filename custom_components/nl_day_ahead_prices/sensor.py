@@ -23,8 +23,8 @@ from .analysis.rating import price_ratings
 from .analysis.trend import trend_for_prices
 from .analysis.volatility import volatility
 from .calculations import (
-    build_all_in_price_attributes,
-    calculate_all_in_price,
+    all_in_entries_for_supplier,
+    build_all_in_price_attributes_for_supplier,
     calculate_monthly_fee,
     calculate_supplier_export_fee,
     calculate_supplier_fee,
@@ -103,23 +103,21 @@ def _next_hour(data: PriceData, now: datetime, entry: ConfigEntry) -> float | No
 
 
 def _average_today(data: PriceData, now: datetime, entry: ConfigEntry) -> float | None:
-    market = average_price(data.result.prices_today)
-    return _calculate_all_in(market, entry) if market is not None else None
+    return average_price(_all_in_entries(data, entry, data.result.prices_today))
 
 
 def _average_tomorrow(data: PriceData, now: datetime, entry: ConfigEntry) -> float | None:
-    market = average_price(data.result.prices_tomorrow)
-    return _calculate_all_in(market, entry) if market is not None else None
+    return average_price(_all_in_entries(data, entry, data.result.prices_tomorrow))
 
 
 def _lowest_today(data: PriceData, now: datetime, entry: ConfigEntry) -> float | None:
-    entry_data = lowest_price(data.result.prices_today)
-    return _calculate_all_in(entry_data.price, entry) if entry_data else None
+    entry_data = lowest_price(_all_in_entries(data, entry, data.result.prices_today))
+    return entry_data.price if entry_data else None
 
 
 def _highest_today(data: PriceData, now: datetime, entry: ConfigEntry) -> float | None:
-    entry_data = highest_price(data.result.prices_today)
-    return _calculate_all_in(entry_data.price, entry) if entry_data else None
+    entry_data = highest_price(_all_in_entries(data, entry, data.result.prices_today))
+    return entry_data.price if entry_data else None
 
 
 def _lowest_time_today(data: PriceData, now: datetime, entry: ConfigEntry) -> datetime | None:
@@ -133,17 +131,11 @@ def _highest_time_today(data: PriceData, now: datetime, entry: ConfigEntry) -> d
 
 
 def _current_all_in(data: PriceData, now: datetime, entry: ConfigEntry) -> float | None:
-    market = current_price(data.result.prices, now)
-    if market is None:
-        return None
-    return _calculate_all_in(market, entry)
+    return current_price(_all_in_entries(data, entry), now)
 
 
 def _next_hour_all_in(data: PriceData, now: datetime, entry: ConfigEntry) -> float | None:
-    market = next_hour_price(data.result.prices, now)
-    if market is None:
-        return None
-    return _calculate_all_in(market, entry)
+    return next_hour_price(_all_in_entries(data, entry), now)
 
 
 def _average_all_in_today(data: PriceData, now: datetime, entry: ConfigEntry) -> float | None:
@@ -172,15 +164,6 @@ def _selected_supplier(data: PriceData, now: datetime, entry: ConfigEntry) -> st
 
 def _effective_price_resolution(data: PriceData, now: datetime, entry: ConfigEntry) -> str:
     return data.result.effective_price_resolution
-
-
-def _calculate_all_in(market: float, entry: ConfigEntry) -> float:
-    return calculate_all_in_price(
-        market,
-        _energy_tax(entry),
-        _selected_supplier_profile(entry),
-        _vat(entry),
-    )
 
 
 def _entry_options(entry: ConfigEntry) -> dict[str, Any]:
@@ -251,11 +234,11 @@ def _last_successful(data: PriceData, now: datetime, entry: ConfigEntry) -> date
     return data.last_successful_update
 
 
-def _all_in_entries(data: PriceData, entry: ConfigEntry) -> list:
-    return [
-        type(item)(item.time, _calculate_all_in(item.price, entry))
-        for item in data.result.prices
-    ]
+def _all_in_entries(data: PriceData, entry: ConfigEntry, prices: list | None = None) -> list:
+    return all_in_entries_for_supplier(
+        data.result.prices if prices is None else prices,
+        _energy_tax(entry), _selected_supplier_profile(entry), _vat(entry),
+    )
 
 
 def _analysis_value(key: str, data: PriceData, now: datetime, entry: ConfigEntry, runtime: dict[str, Any]) -> Any:
@@ -739,7 +722,7 @@ class NLDayAheadPriceSensor(CoordinatorEntity[NLDayAheadPricesCoordinator], Sens
         supplier_profile = _selected_supplier_profile(self.entry)
         base = {
             "prices": [entry.as_attribute() for entry in data.result.prices],
-            "all_in_prices": build_all_in_price_attributes(
+            "all_in_prices": build_all_in_price_attributes_for_supplier(
                 data.result.prices, _energy_tax(self.entry), supplier_profile, _vat(self.entry)
             ),
             "prices_today": [entry.as_attribute() for entry in data.result.prices_today],
@@ -747,10 +730,10 @@ class NLDayAheadPriceSensor(CoordinatorEntity[NLDayAheadPricesCoordinator], Sens
             "raw_prices": [entry.as_attribute() for entry in data.result.raw_prices],
             "raw_prices_today": [entry.as_attribute() for entry in data.result.source_prices_today],
             "raw_prices_tomorrow": [entry.as_attribute() for entry in data.result.source_prices_tomorrow],
-            "all_in_prices_today": build_all_in_price_attributes(
+            "all_in_prices_today": build_all_in_price_attributes_for_supplier(
                 data.result.prices_today, _energy_tax(self.entry), supplier_profile, _vat(self.entry)
             ),
-            "all_in_prices_tomorrow": build_all_in_price_attributes(
+            "all_in_prices_tomorrow": build_all_in_price_attributes_for_supplier(
                 data.result.prices_tomorrow, _energy_tax(self.entry), supplier_profile, _vat(self.entry)
             ),
             "price_resolution": data.result.effective_price_resolution,

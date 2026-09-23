@@ -169,3 +169,34 @@ def test_registry_used_by_existing_sensor_and_custom_options(sensor_module, exte
     assert custom["supplier_purchase_fee"] == pytest.approx(0.0605)
     assert custom["supplier_tariff_last_verified"] is None
     assert custom["all_in_prices"][0]["price"] == pytest.approx(0.1 * 1.21 + 0.1108 + 0.0605)
+
+
+@pytest.mark.parametrize("minutes", [15, 60])
+@pytest.mark.parametrize("extended", [False, True])
+@pytest.mark.parametrize("custom", [False, True])
+def test_tibber_tomorrow_fee_changes_before_midnight(sensor_module, monkeypatch, minutes, extended, custom):
+    zone = ZoneInfo("Europe/Amsterdam")
+    now = datetime(2026, 8, 31, 15, tzinfo=zone)
+    monkeypatch.setattr(sensor_module.dt_util, "now", lambda: now)
+    sensor = make_sensor(sensor_module, day_prices("2026-08-31", minutes), extended)
+    sensor.coordinator.data.result.prices_tomorrow = day_prices("2026-09-01", minutes)
+    sensor.entry.options = {"selected_supplier": "tibber"}
+    if custom:
+        sensor.entry.options = {"selected_supplier": "custom", "custom_purchase_fee_electricity": 0.05,
+                                "custom_purchase_fee_includes_vat": True}
+    attrs = sensor.extra_state_attributes
+    today_fee, tomorrow_fee = (0.05, 0.05) if custom else (0.0248, 0.018)
+    base = 0.1 * 1.21 + 0.1108
+    assert attrs["supplier_purchase_fee"] == today_fee
+    assert all(item["price"] == pytest.approx(base + today_fee) for item in attrs["all_in_prices_today"])
+    assert all(item["price"] == pytest.approx(base + tomorrow_fee) for item in attrs["all_in_prices_tomorrow"])
+    assert attrs["all_in_prices"] == attrs["all_in_prices_today"] + attrs["all_in_prices_tomorrow"]
+    tomorrow_start = attrs["all_in_prices_tomorrow"][0]
+    assert tomorrow_start["time"] == "2026-09-01T00:00:00+02:00"
+    for item in attrs["all_in_prices"]:
+        assert set(item) == {"time", "price"}
+        assert isinstance(item["price"], (int, float))
+        assert datetime.fromisoformat(item["time"]).tzinfo is not None
+    assert sensor_module._average_tomorrow(sensor.coordinator.data, now, sensor.entry) == pytest.approx(base + tomorrow_fee)
+    before_midnight = datetime(2026, 8, 31, 23, 59, tzinfo=zone)
+    assert sensor_module._next_hour_all_in(sensor.coordinator.data, before_midnight, sensor.entry) == pytest.approx(base + tomorrow_fee)

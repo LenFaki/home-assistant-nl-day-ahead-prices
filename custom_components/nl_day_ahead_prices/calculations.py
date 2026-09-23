@@ -2,10 +2,38 @@
 
 from __future__ import annotations
 
+from datetime import date
 from typing import Any
 
+from .models import PriceEntry
 from .supplier_profiles import SupplierProfile
 from .supplier_profiles import normalize_supplier_profile as _normalize_supplier_profile
+from .supplier_registry import get_supplier_tariff, market_date
+
+
+def all_in_entries_for_supplier(
+    prices: list[PriceEntry], energy_tax: float, supplier_profile: SupplierProfile, vat: float,
+) -> list[PriceEntry]:
+    """Use the applicable local-date tariff; keep custom overrides constant."""
+    profiles_by_date: dict[date, SupplierProfile] = {}
+    entries = []
+    custom = supplier_profile.key == "custom" or supplier_profile.registry_source == "custom"
+    for item in prices:
+        profile = supplier_profile
+        if not custom:
+            day = market_date(item.time)
+            if day not in profiles_by_date:
+                profiles_by_date[day] = get_supplier_tariff(profile.key, day) or profile
+            profile = profiles_by_date[day]
+        entries.append(PriceEntry(item.time, calculate_all_in_price(item.price, energy_tax, profile, vat)))
+    return entries
+
+
+def build_all_in_price_attributes_for_supplier(
+    prices: list[PriceEntry], energy_tax: float, supplier_profile: SupplierProfile, vat: float,
+) -> list[dict[str, Any]]:
+    """Preserve the public time/price schema with interval-date tariffs."""
+    return [item.as_attribute() for item in all_in_entries_for_supplier(prices, energy_tax, supplier_profile, vat)]
 
 
 def calculate_supplier_fee(profile: SupplierProfile | dict[str, Any] | None, vat: float) -> float:

@@ -7,9 +7,8 @@ from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
 from homeassistant.helpers import config_validation as cv
 
 from .analysis.chart_export import apexcharts_yaml, export_prices
-from .calculations import calculate_all_in_price
+from .calculations import all_in_entries_for_supplier
 from .const import DOMAIN
-from .models import PriceEntry
 from .sensor import _energy_tax, _selected_supplier_profile, _vat
 
 EXPORT_SERVICE = "export_chart_data"
@@ -47,13 +46,9 @@ def async_register_services(hass: HomeAssistant) -> None:
             prices.extend(data.result.prices_tomorrow)
         if call.data["price_type"] == "all_in":
             entry = coordinator.entry
-            prices = [
-                PriceEntry(
-                    item.time,
-                    calculate_all_in_price(item.price, _energy_tax(entry), _selected_supplier_profile(entry), _vat(entry)),
-                )
-                for item in prices
-            ]
+            prices = all_in_entries_for_supplier(
+                prices, _energy_tax(entry), _selected_supplier_profile(entry), _vat(entry)
+            )
         from .analysis.periods import find_price_periods
         from .const import (
             CONF_BEST_PERIOD_DURATION,
