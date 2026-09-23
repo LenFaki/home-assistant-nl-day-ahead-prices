@@ -12,6 +12,7 @@ from zoneinfo import ZoneInfo
 import aiohttp
 import pytest
 
+from custom_components.nl_day_ahead_prices import registry_validation as validation
 from custom_components.nl_day_ahead_prices import remote_registry as remote
 from custom_components.nl_day_ahead_prices import supplier_registry as registry
 from custom_components.nl_day_ahead_prices.calculations import build_all_in_price_attributes_for_supplier
@@ -423,7 +424,7 @@ def test_numeric_endpoints_and_realistic_values_accepted(field, minimum, maximum
 
 @pytest.mark.parametrize("field,minimum,maximum", NUMERIC_RULES)
 def test_numeric_out_of_bounds_rejected_before_normalization(field, minimum, maximum, monkeypatch):
-    monkeypatch.setattr(remote, "parse_registry", Mock(side_effect=AssertionError("Reached normalization")))
+    monkeypatch.setattr(validation, "parse_registry", Mock(side_effect=AssertionError("Reached normalization")))
     for value in (minimum - 0.000001, maximum + 0.000001, 10**400, -(10**400)):
         candidate = payload()
         candidate["suppliers"]["anwb_energie"]["tariffs"][0][field] = value
@@ -436,7 +437,7 @@ def test_numeric_out_of_bounds_rejected_before_normalization(field, minimum, max
 def test_numeric_invalid_types_and_nonfinite_rejected_before_normalization(
     field, minimum, maximum, value, monkeypatch
 ):
-    monkeypatch.setattr(remote, "parse_registry", Mock(side_effect=AssertionError("Reached normalization")))
+    monkeypatch.setattr(validation, "parse_registry", Mock(side_effect=AssertionError("Reached normalization")))
     candidate = payload()
     candidate["suppliers"]["anwb_energie"]["tariffs"][0][field] = value
     with pytest.raises(ValueError, match=field):
