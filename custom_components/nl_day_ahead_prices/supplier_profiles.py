@@ -46,6 +46,11 @@ class SupplierProfile:
     feed_in_fee: float = 0.0
     imbalance_fee: float | None = None
     notes: str | None = None
+    valid_from: str | None = None
+    valid_until: str | None = None
+    source_type: str = "unknown"
+    registry_version: int | None = None
+    registry_source: str = "legacy"
 
     def __post_init__(self) -> None:
         """Populate v2 aliases for profiles constructed with the v1 schema."""

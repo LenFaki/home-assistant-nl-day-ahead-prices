@@ -2,6 +2,21 @@
 
 All notable changes to **EnerPrice** are documented here.
 
+## 2.1.0
+
+### Added
+
+- Offline supplier tariff registry with schema validation, validity periods and deterministic date selection in Europe/Amsterdam.
+- Tariff freshness, source, validity, settlement resolution and registry origin attributes and diagnostics.
+- Compatibility adapter to existing supplier profiles and legacy fallback; custom options retain precedence.
+
+### Changed
+
+- Updated Tibber's published standard tariff from September 2026, easyEnergy import fee precision and EnergyZero's 2026 VAT-exclusive import fee.
+- Added verified quarter-hour settlement for Tibber, EnergyZero and Greenchoice; preserved Zonneplan's existing dated migration.
+- Kept unverified fees and their verification dates unchanged, with source quality and review limitations documented.
+- Prepared a validation boundary for future remote registries without adding any network requests.
+
 ## 2.0.3
 
 ### Added

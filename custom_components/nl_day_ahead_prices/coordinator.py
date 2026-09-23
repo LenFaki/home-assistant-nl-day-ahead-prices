@@ -52,7 +52,7 @@ from .providers import (
     ProviderError,
     async_fetch_with_fallback,
 )
-from .supplier_profiles import load_supplier_profiles
+from .supplier_registry import get_supplier_profiles
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -262,7 +262,7 @@ class NLDayAheadPricesCoordinator(DataUpdateCoordinator[PriceData]):
         options = self.entry.options
         data = self.entry.data
         selected_supplier = options.get(CONF_SELECTED_SUPPLIER, data.get(CONF_SELECTED_SUPPLIER, DEFAULT_SELECTED_SUPPLIER))
-        profiles = load_supplier_profiles()
+        profiles = get_supplier_profiles(now)
         profile = profiles.get(selected_supplier) or profiles.get(DEFAULT_SELECTED_SUPPLIER)
         if profile is None:
             return "hourly"
