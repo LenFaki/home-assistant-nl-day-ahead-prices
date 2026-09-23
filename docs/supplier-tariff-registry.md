@@ -63,17 +63,42 @@ historical contract prices.
 | --- | --- |
 | Zonneplan | Import EUR 0.0200 incl VAT and quarter-hour pricing confirmed on [dynamic contract page](https://www.zonneplan.nl/energie/dynamisch-energiecontract). Monthly/export values retained; no new full-profile verification claim. Zonnebonus is not modeled. |
 | Tibber | [Standard contract](https://tibber.com/nl/energiecontract) confirms EUR 0.0180 import/export incl VAT, EUR 6.99/month from September 1 and quarter-hour pricing. [Support](https://support.tibber.com/nl/articles/5605892-de-kosten-bij-tibber) says older contracts can retain their agreed monthly fee; use custom settings if applicable. |
-| ANWB Energie | [Current tariffs](https://www.anwb.nl/energie/actuele-tarieven) confirms EUR 0.018 incl VAT and hourly prices. Other fees retained. |
-| easyEnergy | [Official price graph](https://price-graph.mijn.easyenergy.com/) shows EUR 0.02178 in the consumer invoice breakdown. Import precision updated; export/monthly values retained. Settlement contract not independently established from a chart display alone. |
+| ANWB Energie | [Current tariffs](https://www.anwb.nl/energie/actuele-tarieven) confirms EUR 0.018 incl VAT and hourly prices; [contract explanation](https://www.anwb.nl/energie/hoe-werkt-anwb-energie) confirms EUR 8.50/month. Export remains unverified; the complete-record date is unchanged. |
+| easyEnergy | [Official tariffs](https://www.easyenergy.com/klantenservice/onze-tarieven) confirms EUR 0.02178/kWh and EUR 7/month including VAT, plus quarter-hour electricity pricing. Current settlement corrected; export remains legacy/unverified. |
 | EnergyZero | [Official 2026 fee table](https://support.energyzero.nl/hc/nl/articles/7986421808285-Hoe-is-de-inkoopvergoeding-opgebouwd-voor-consumenten) gives EUR 0.028 excluding VAT. [Current prices](https://www.energyzero.nl/actuele-prijzen) confirms quarter-hour settlement from January 1, 2026. Export and monthly fees remain legacy values including VAT. |
 | Greenchoice | [Dynamic contract](https://www.greenchoice.nl/stroom-en-gas/dynamisch-energiecontract/) confirms quarter-hour settlement, not a universal numeric fee. Fees retain secondary provenance. September 23 is an observation date, not a claimed contract-change date. |
 | Vandebron | A generic EUR 0.02 example does not establish a universal fee. EUR 0.0257 and existing source date retained; verify the individual tariff sheet. |
-| Eneco, Vattenfall, SamSam | No sufficiently authoritative exact current tariff established in this review. Retain numeric values and secondary references; manual verification required. |
+| SamSam | [Official tariffs](https://samsam.nu/groene-energie) confirms EUR 0.021118/kWh including VAT, EUR 7.99/month per connection and hourly electricity. Corrected import from the observation date; historical EUR 0.0339 remains intact. Export EUR 0.0339 is unverified legacy data, not an official current amount. |
+| Eneco | [Dynamic tariffs](https://www.eneco.nl/duurzame-energie/dynamisch-energiecontract/dynamische-tarieven/) explains the mechanism without establishing exact universal current fees. EUR 0.0241/kWh and EUR 7/month retain secondary provenance and their old verification date. |
+| Vattenfall | [FlexPrijs with solar panels](https://www.vattenfall.nl/energie/dynamisch-energiecontract/zonnepanelen/) reviewed on 2026-09-23 did not establish a complete replacement tariff, its actual effective date and the exact mapping to EnerPrice's export-fee semantics. The single legacy record remains secondary/unverified: EUR 0.0255/kWh import and export, EUR 7.95/month. No new validity boundary or verification date. |
 | Pure Energie | [Fee explanation](https://pure-energie.nl/kennisbank/inkoop-en-verkoopvergoeding-dynamisch-contract/) explains the components, but does not establish current universal amounts. Retain contributed values, including the export sign, pending contract verification. |
 
-For easyEnergy and Greenchoice newly observed values take effect in the registry
+For easyEnergy, Greenchoice and SamSam newly observed values take effect in the registry
 on the review date, rather than backdating an unknown effective date. No
 unverified EnergyZero legacy value is promoted into a purported pre-2026 tariff.
+
+### Partial verification and export limitations in 2.1.1
+
+The SamSam import/monthly/resolution observation is dated 2026-09-23 in notes.
+Its `last_verified` remains 2026-07-02: setting it to the observation date would
+incorrectly report the entire record, including unverified export, as current.
+The official source identifies the confirmed fields, not every retained field.
+Vattenfall retains its single secondary legacy record, all amounts and its old
+verification date. Its observation date is not used as a tariff validity boundary.
+
+EnerPrice models export fees as a flat per-kWh deduction. easyEnergy's
+[tariff sheet](https://www.easyenergy.com/media/nsfhjtjd/tarievenblad.pdf)
+describes charging the purchase fee on the monthly balance of consumption and
+export. That netting cannot be represented by a single interval export fee.
+The legacy EUR 0.0218 export value is therefore not newly certified, set to zero,
+or inferred from the import fee. No additional feed-in costs does not establish
+the value of `purchase_fee_export`. Compare export estimates with your own
+contract; this patch does not implement billing or saldering logic.
+
+All other unverified amounts and dates remain unchanged. EnergyZero's import
+fee stays EUR 0.028 excluding VAT (EUR 0.03388 at 21%), while its export VAT flag
+remains independent. Zonnebonus is not added to Zonneplan's fee. The custom
+supplier, legacy fallback file and automatic release workflow are unchanged.
 
 ## Future remote registry
 
