@@ -15,6 +15,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -24,6 +26,15 @@ jobs:
         run: ruff check .
       - name: Pytest
         run: pytest
+      - name: Registry validation
+        run: python scripts/audit_supplier_registry.py --validate-only
+      - name: Registry revision guard
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.sha }}
+        run: python scripts/audit_supplier_registry.py --validate-only --compare-ref "$BASE_REF"
+      - name: Audit issue lifecycle tests (mocked GitHub API)
+        run: node --test tests/test_supplier_audit_issue.cjs
 
   release:
     needs: lint-test

@@ -259,3 +259,46 @@ to bypass the daily request limit. All-Bundled mode performs no registry HTTP.
 No new price-array schema, services, tariff amounts, scraping, audit automation
 or release is part of PR2. Manifest/project version remains 2.1.1 pending the
 complete v2.2.0 release.
+
+## Maintainer audit (PR3)
+
+PR3 adds read-only registry maintenance, not a new runtime data source. The CLI
+`scripts/audit_supplier_registry.py` imports the pure-Python strict validation
+module also used by the remote transport. Numeric limits, required supplier
+coverage and overlap checks therefore cannot diverge between these callers.
+Runtime tariff selection and freshness are reused directly: inclusive nullable
+validity boundaries, current through day 60, recommended at days 61-120, stale
+after day 120, and unknown for missing/invalid/future verification dates.
+
+```bash
+python scripts/audit_supplier_registry.py --date 2026-09-23
+python scripts/audit_supplier_registry.py --date 2026-09-23 --format json
+python scripts/audit_supplier_registry.py --validate-only --compare-ref origin/main
+```
+
+The default date is today in Europe/Amsterdam. Console, JSON and Markdown reports
+are deterministic for the same registry/date. Exit 0 means all current, 1 means
+maintenance findings, and 2 means structural/execution/revision failure.
+Validation-only ignores freshness. Missing applicable tariffs are maintenance
+findings; malformed dates, missing required data and overlaps are structural
+failures. PR CI rejects semantic data changes without a revision increase and
+any revision decrease, while allowing formatting-only changes.
+
+On Mondays at 06:17 UTC (and manual upstream-main dispatch), the audit workflow
+uses only contents-read/issues-write permissions to maintain one marked issue.
+Findings create/update/reopen it; healthy results update/close it. A healthy
+first run creates nothing. Exit 1 is not a failed workflow. It never changes
+tariffs, verification dates, provenance, revisions or repository files. No
+supplier website is fetched. The existing version-gated release job is unchanged;
+manifest and project remain 2.1.1.
+
+Maintenance is human work: establish contract scope, complete amounts and VAT,
+actual effective dates, and primary-source evidence. Preserve historical periods
+and source provenance, advance `last_verified` only after genuine verification,
+increase the registry revision for data changes, validate and open a reviewed PR.
+An observation date is not an effective date. Freshness is not proof of tariff
+correctness, and staleness does not prove an amount wrong.
+
+See the [maintainer guide](../registry/README.md#read-only-maintenance-audit-pr3)
+for the full report/exit-code contract, issue marker and lifecycle, security
+precautions, historical-period rules and revision comparison semantics.

@@ -47,7 +47,7 @@ Negative export fees are supported. Booleans cannot substitute for numbers.
 6. Run the complete test suite and Ruff. Validate the candidate locally:
 
    ```bash
-   python -c 'from pathlib import Path; from custom_components.nl_day_ahead_prices.remote_registry import decode_registry, parse_remote_registry; parse_remote_registry(decode_registry(Path("registry/supplier_tariffs.json").read_bytes()))'
+   python scripts/audit_supplier_registry.py --validate-only --compare-ref origin/main
    pytest
    ruff check .
    ```
@@ -66,5 +66,74 @@ Do not renumber an unchanged bundled snapshot.
 
 See [runtime architecture](../docs/supplier-tariff-registry.md#remote-registry-core-pr1)
 for startup, storage, fallback and privacy behavior. PR2 provides per-entry
-Automatic/Bundled-only options and diagnostic entities. PR3 supplier auditing
-is intentionally absent.
+Automatic/Bundled-only options and diagnostic entities.
+
+## Read-only maintenance audit (PR3)
+
+The standard-library CLI shares the runtime's strict validator, period selector
+and freshness function; Home Assistant and network access are not required:
+
+```bash
+python scripts/audit_supplier_registry.py --date 2026-09-23
+python scripts/audit_supplier_registry.py --date 2026-09-23 --format json
+python scripts/audit_supplier_registry.py --date 2026-09-23 --format markdown
+python scripts/audit_supplier_registry.py --validate-only
+python scripts/audit_supplier_registry.py --validate-only --compare-ref origin/main
+```
+
+Without `--date`, the audit uses today's Europe/Amsterdam date. Explicit dates
+must be valid ISO YYYY-MM-DD dates. Console output groups suppliers by maintenance
+severity, then oldest verification and supplier ID. JSON contains metadata,
+summary, supplier records and problems, without extra stdout logging. Markdown
+is the deterministic issue body. All formats are read-only.
+
+Only the tariff applicable on the audit date is audited. Boundaries are inclusive:
+`valid_from <= date <= valid_until`, with null meaning unbounded. Historical and
+future records are not substituted for a missing applicable record. Additional
+supplier IDs are included automatically; `custom` is excluded.
+
+| Status | Verification age |
+| --- | --- |
+| current | 0-60 days |
+| verification_recommended | 61-120 days |
+| stale | More than 120 days |
+| unknown | Null, invalid or future verification date, or no applicable tariff |
+
+Exit codes: **0** means structurally valid and all suppliers current; **1** means
+valid with maintenance findings (including verification recommended); **2** means
+invalid structure, execution failure or revision-guard failure. Invalid non-null
+date strings are reported as unknown but also fail strict validation with code 2.
+Missing required fields, missing suppliers, empty records, reversed dates and
+overlaps are structural failures. A valid history with a gap returns code 1.
+`--validate-only` ignores freshness and returns 0 or 2.
+
+`--compare-ref` reads the base registry through Git without changing files.
+Semantic content changes require an increased revision; decreases always fail.
+Object ordering, tariff-array ordering and formatting do not matter. Changes to
+`published_at` alone do not require an increment. Revision jumps are allowed but
+should be deliberate. An invalid/unavailable base fails safely and requires
+maintainer investigation. PR CI compares against the PR base commit.
+
+The weekly workflow runs Monday **06:17 UTC**, or manually on upstream `main`.
+It validates and tests first, saves JSON/Markdown artifacts, and accepts exit 1
+as a successful audit. Exit 2 fails before issue publication. Permissions are
+`contents: read` and `issues: write`; checkout credentials are not persisted.
+
+One central issue uses title **EnerPrice supplier tariff audit**, optional label
+`supplier-tariff-audit`, and marker `<!-- enerprice-supplier-tariff-audit -->`.
+Only marked issues with the title or label are managed. Open and closed issues
+are searched: findings create/update/reopen the issue, healthy results update
+and close it. A healthy first run creates nothing. Multiple matches generate a
+warning and only the oldest is updated; there is no mass closure. The label is
+created when possible, with title/marker fallback on permission failure. Reports
+replace the body rather than accumulating comments.
+
+Supplier text is escaped, public source links validated, and notes/raw errors
+and environment secrets are not included. No supplier URL is fetched. No scraper,
+AI interpretation, tariff edit, revision increment, commit, automated tariff PR
+or release runs here. Verify complete contract amounts, VAT and effective dates
+manually; preserve history and provenance and submit a normal reviewed PR.
+
+**Freshness is not correctness:** recently verified means recently checked by a
+maintainer, not proof that a supplier has not changed prices since. Stale means
+verification is needed, not that the amount is necessarily wrong.
