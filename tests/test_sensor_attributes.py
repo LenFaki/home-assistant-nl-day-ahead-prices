@@ -31,7 +31,7 @@ def sensor_module(monkeypatch):
     description = make_dataclass("SensorEntityDescription", [
         (key, object, None) for key in (
             "key", "translation_key", "native_unit_of_measurement", "device_class",
-            "options", "state_class", "suggested_display_precision", "entity_registry_enabled_default",
+            "options", "state_class", "suggested_display_precision", "entity_registry_enabled_default", "entity_category",
         )
     ], frozen=True, kw_only=True)
     modules = {
@@ -43,7 +43,8 @@ def sensor_module(monkeypatch):
             "SensorEntity": type("SensorEntity", (), {}), "SensorEntityDescription": description,
         },
         "homeassistant.config_entries": {"ConfigEntry": object},
-        "homeassistant.const": {"UnitOfEnergy": SimpleNamespace(KILO_WATT_HOUR="kWh")},
+        "homeassistant.const": {"UnitOfEnergy": SimpleNamespace(KILO_WATT_HOUR="kWh"),
+                                "EntityCategory": SimpleNamespace(DIAGNOSTIC="diagnostic")},
         "homeassistant.core": {"HomeAssistant": object},
         "homeassistant.helpers": {},
         "homeassistant.helpers.entity_platform": {"AddEntitiesCallback": object},

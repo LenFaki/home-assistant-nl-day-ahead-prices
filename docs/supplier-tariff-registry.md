@@ -178,8 +178,84 @@ metadata such as the source IP is necessarily visible to GitHub. Transport uses
 HTTPS and the trusted repository; this PR does not add cryptographic signing or
 independent verification of suppliers' commercial claims.
 
-The shared active snapshot follows the integration's existing process-wide
-profile API, assuming one Home Assistant instance per process. No config-entry
-migration, new entities/services/options, scraping, audit workflow or release is
-part of PR1. See [maintainer workflow](../registry/README.md) for publishing a
-reviewed higher revision while preserving history and source quality.
+PR1 introduced the shared snapshot API; PR2 adds the explicit per-entry view
+described below. See [maintainer workflow](../registry/README.md) for publishing
+a reviewed higher revision while preserving history and source quality.
+
+## Home Assistant UX (PR2)
+
+### Modes and multiple configurations
+
+The options flow offers **Supplier tariff updates**: **Automatic (recommended)**
+(`automatic`) or **Bundled only** (`bundled`). Entries without the setting default
+to Automatic, with no migration. Labels and diagnostic states are translated in
+English and Dutch. The pending supplier summary uses the selected mode without
+starting a download or changing the running configuration.
+
+Automatic uses a validated newer cache and PR1's daily updater. Bundled only
+ignores remote data, including persistent cache, for that entry's calculations.
+There is still just one shared manager, cache, lock and background task. Any
+loaded Automatic entry permits updates; the last Automatic entry switching away
+or unloading cancels the task. Bundled-only entries cannot disable updates needed
+by another entry and never use its remote tariff view.
+
+Registry selection is an explicit `mode` argument on profile lookup, carried in
+the immutable selected profile into per-PriceEntry calculations. No calculation
+toggles global state. Every interval still selects tariffs for its Amsterdam
+date, including midnight and DST. Custom supplier values always take precedence.
+
+Switching modes is immediate. The options listener reuses cached data and existing
+raw market prices, clears derived calculations and adjusts interval notifications.
+It does not reload the entry or refetch market APIs for local option changes.
+Actual market-provider configuration changes still reload normally. Re-enabling
+Automatic reconsiders the retained valid cache and starts the same updater; the
+persisted 24-hour check limit still applies. Disabling does not delete the cache.
+
+### Diagnostic entities
+
+Both enabled-by-default diagnostic sensors belong to the existing EnerPrice
+device and remain available without market-price data:
+
+- **Supplier Tariff Status**: `current`, `verification_recommended`, `stale`,
+  `unknown`, or `custom`, using the existing freshness rules and current Amsterdam
+  market date. Attributes include supplier, actual tariff source/revision,
+  import/export/monthly fees, VAT flags, resolution, validity, verification age,
+  source type and validated public provenance URL. A gap in remote tariff history
+  can legitimately show a bundled tariff even while the registry is remote.
+- **Supplier Registry Status**: `bundled`, `cached_remote`, or `remote`. Attributes
+  include schema/revision/publication time, last checked/success/update timestamps,
+  per-entry update permission, fallback flag and a safe last-check result.
+
+`cached_remote` means the active data came from local storage and has not yet been
+retrieved or confirmed unchanged in this process. `remote` means a newer snapshot
+was accepted, or an identical cached payload was confirmed, during this session.
+A subsequent failure does not change the usable registry into an error state.
+`bundled` is the installed registry. Bundled-only entries report `disabled` and
+`fallback_active: false`; their shared check timestamps may reflect activity for
+other Automatic entries. For Automatic, fallback is true while using bundled or
+unconfirmed cached data, not an indication that market prices are unavailable.
+
+`last_check_result` is session-local: `never_checked`, `disabled`, `success`,
+`not_modified` (same or older revision), `network_error`, `http_error`,
+`validation_error`, or `storage_error`. After restarting or re-enabling, a recent persisted check
+can suppress HTTP while the session result still says `never_checked`. No HTTP
+exception text or response bodies are exposed.
+
+### Diagnostics, privacy and troubleshooting
+
+HA diagnostics include `supplier_registry` and `supplier_tariff`, even before
+market prices load. These reuse the same views as the sensors; no registry
+payload, tokens, location or consumption is included. Configuration fields are
+allowlisted and provider error messages are reduced to safe categories.
+
+If fees differ from your contract, inspect the tariff's `last_verified`, source
+and VAT flags; use Custom for contract-specific values. A downloaded revision
+does not mean all supplier fees were freshly verified. On `network_error` or
+`http_error`, the last good local data remains usable and the next daily check
+retries. On `validation_error`, maintainers must correct the published registry;
+on `storage_error`, check HA storage availability. Switching modes is not a way
+to bypass the daily request limit. All-Bundled mode performs no registry HTTP.
+
+No new price-array schema, services, tariff amounts, scraping, audit automation
+or release is part of PR2. Manifest/project version remains 2.1.1 pending the
+complete v2.2.0 release.

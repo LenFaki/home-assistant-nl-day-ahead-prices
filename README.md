@@ -212,9 +212,22 @@ the built-in Dutch dynamic supplier profiles, or select **Custom supplier** and
 enter your own values.
 
 - `selected_supplier`: default `Zonneplan`
+- `supplier_tariff_updates`: **Automatic (recommended)** or **Bundled only**; default Automatic
 - `price_resolution`: default `auto`
 - `energy_tax`: default `0.1108` EUR/kWh, including VAT
 - `vat`: default `0.21`
+
+Automatic retrieves the centrally maintained, validated EnerPrice tariff registry,
+at most once per 24 hours. It does not scrape supplier websites. Bundled only uses
+the installed tariff data and ignores remote cache for that configuration. Mode
+changes apply immediately without restarting HA or fetching market prices.
+Multiple configurations share one updater; an Automatic configuration does not
+override another configuration's Bundled-only choice. Custom fees always win.
+
+Two enabled diagnostic entities on the existing EnerPrice device show
+**Supplier Tariff Status** (freshness and provenance) and **Supplier Registry
+Status** (`remote`, `cached_remote` or `bundled`). They remain available when
+market APIs fail. See [registry modes and troubleshooting](docs/supplier-tariff-registry.md#home-assistant-ux-pr2).
 
 When you select a built-in supplier, the next screen shows the profile values
 that will be used for the all-in calculation: purchase fee, monthly fee,

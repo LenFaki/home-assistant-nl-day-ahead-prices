@@ -65,5 +65,6 @@ matching `revision`; older bundled files without that field mean revision 1.
 Do not renumber an unchanged bundled snapshot.
 
 See [runtime architecture](../docs/supplier-tariff-registry.md#remote-registry-core-pr1)
-for startup, storage, fallback and privacy behavior. PR2 status/options UI and
-PR3 supplier auditing are intentionally absent.
+for startup, storage, fallback and privacy behavior. PR2 provides per-entry
+Automatic/Bundled-only options and diagnostic entities. PR3 supplier auditing
+is intentionally absent.

@@ -23,7 +23,7 @@ def all_in_entries_for_supplier(
         if not custom:
             day = market_date(item.time)
             if day not in profiles_by_date:
-                profiles_by_date[day] = get_supplier_tariff(profile.key, day) or profile
+                profiles_by_date[day] = get_supplier_tariff(profile.key, day, mode=supplier_profile.tariff_registry_mode) or profile
             profile = profiles_by_date[day]
         entries.append(PriceEntry(item.time, calculate_all_in_price(item.price, energy_tax, profile, vat)))
     return entries

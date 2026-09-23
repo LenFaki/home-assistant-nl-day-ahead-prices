@@ -19,6 +19,7 @@ from typing import Any
 from urllib.parse import urlparse
 from zoneinfo import ZoneInfo
 
+from .const import CONF_SUPPLIER_TARIFF_UPDATES, SUPPLIER_UPDATES_AUTOMATIC, SUPPLIER_UPDATES_BUNDLED
 from .price_resolution import get_supplier_price_resolution
 from .supplier_profiles import SupplierProfile, load_supplier_profiles, normalize_supplier_profile
 
@@ -38,6 +39,12 @@ class SupplierRegistry:
 
 
 _remote_registry: SupplierRegistry | None = None
+
+
+def supplier_update_mode(options: dict) -> str:
+    """Missing options retain Automatic behaviour without a migration."""
+    return (SUPPLIER_UPDATES_BUNDLED if options.get(CONF_SUPPLIER_TARIFF_UPDATES) == SUPPLIER_UPDATES_BUNDLED
+            else SUPPLIER_UPDATES_AUTOMATIC)
 
 
 def activate_remote_registry(candidate: SupplierRegistry | None) -> None:
@@ -158,6 +165,7 @@ def parse_registry(payload: Any) -> SupplierRegistry:
                     source_type=record["source_type"],
                     registry_version=1,
                     registry_source="bundled",
+                    registry_revision=revision,
                 )
             )
         parsed[key] = tuple(profiles)
@@ -192,27 +200,32 @@ def select_tariff(
     return max(enumerate(candidates), key=lambda pair: (pair[1].valid_from or "", pair[0]))[1] if candidates else None
 
 
-def get_supplier_profiles(on: date | datetime | None = None) -> dict[str, SupplierProfile]:
+def get_supplier_profiles(
+    on: date | datetime | None = None, *, mode: str = SUPPLIER_UPDATES_AUTOMATIC,
+    remote_view: SupplierRegistry | None = None,
+) -> dict[str, SupplierProfile]:
     """Keep supplier IDs and legacy fields while resolving today's registry."""
     profiles = dict(load_supplier_profiles())
     bundled = load_registry()
+    remote = remote_view if remote_view is not None else _remote_registry
     registries = [bundled]
-    if _remote_registry is not None and _remote_registry.revision > bundled.revision:
-        registries.append(_remote_registry)
+    if mode != SUPPLIER_UPDATES_BUNDLED and remote is not None and remote.revision > bundled.revision:
+        registries.append(remote)
     for registry in registries:
         for key in registry.suppliers:
             selected = select_tariff(registry, key, on)
             if selected is not None and key != "custom":
                 profiles[key] = selected
-    return profiles
+    return {key: replace(profile, tariff_registry_mode=mode) for key, profile in profiles.items()}
 
 
 def get_supplier_tariff(
-    supplier_id: str, on: date | datetime | None = None, *, custom: SupplierProfile | None = None
+    supplier_id: str, on: date | datetime | None = None, *, custom: SupplierProfile | None = None,
+    mode: str = SUPPLIER_UPDATES_AUTOMATIC,
 ) -> SupplierProfile | None:
     if custom is not None:
         return replace(custom, registry_source="custom", source_type="manual")
-    return get_supplier_profiles(on).get(supplier_id)
+    return get_supplier_profiles(on, mode=mode).get(supplier_id)
 
 
 def tariff_freshness(last_verified: str | None, on: date | datetime | None = None) -> tuple[str, int | None]:
