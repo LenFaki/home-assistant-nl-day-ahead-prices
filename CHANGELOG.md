@@ -2,6 +2,25 @@
 
 All notable changes to **EnerPrice** are documented here.
 
+## 2.2.1
+
+### Fixed
+
+- Preserved the remote supplier registry's last check result across Home Assistant restarts, including backward-compatible recovery from v2.2.0 cache data.
+- Prevented large price and chart arrays from being written to Recorder history while keeping the same live entity attributes available to dashboards and ApexCharts.
+- Kept the Average All-in Price Today statistics metadata explicitly on `EUR/kWh` with regression coverage.
+
+### Improved
+
+- Clarified supplier registry metadata by exposing the schema version and active registry revision separately while retaining the legacy `supplier_registry_version` compatibility attribute.
+- Added regression coverage for remote-registry restart state and recorder-safe chart attribute compatibility.
+
+### Compatibility
+
+- No supplier tariff amounts or price calculations changed.
+- Existing chart/ApexCharts attribute names and live data remain available.
+- The integration domain remains `nl_day_ahead_prices`.
+
 ## 2.2.0
 
 ### Added
