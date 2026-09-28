@@ -154,13 +154,13 @@ def test_shared_numeric_schema_bounds():
         assert (fields[key]["minimum"], fields[key]["maximum"]) == (minimum, maximum)
 
 
-@pytest.mark.parametrize("change,revision,valid", [
-    (False, 1, True), (False, 2, True), (True, 1, False), (True, 2, True), (True, 4, True),
+@pytest.mark.parametrize("change,revision_delta,valid", [
+    (False, 0, True), (False, 1, True), (True, 0, False), (True, 1, True), (True, 3, True),
 ])
-def test_revision_guard(change, revision, valid):
+def test_revision_guard(change, revision_delta, valid):
     before = payload()
     after = copy.deepcopy(before)
-    after["revision"] = revision
+    after["revision"] = before["revision"] + revision_delta
     if change:
         after["suppliers"]["anwb_energie"]["tariffs"][0]["purchase_fee_import"] = 0.02
     if valid:
