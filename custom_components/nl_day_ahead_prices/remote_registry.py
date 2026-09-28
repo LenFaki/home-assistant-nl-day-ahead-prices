@@ -94,6 +94,12 @@ class RemoteRegistryManager:
                     self.last_check = times["last_check"]
                     self.last_success = times["last_success"]
                     self.last_update = times["last_update"]
+                    result = cached.get("last_check_result")
+                    if isinstance(result, str):
+                        self.last_check_result = result
+                    elif self.last_success is not None:
+                        # Backward compatibility with v2.2.0 cache envelopes.
+                        self.last_check_result = "success" if self.last_update == self.last_success else "not_modified"
                     if candidate is not None and candidate.revision > self.active.revision:
                         self.payload = cached["registry"]
                         self.cached_registry = candidate
@@ -132,6 +138,7 @@ class RemoteRegistryManager:
             "last_check": self.last_check.isoformat() if self.last_check else None,
             "last_success": success.isoformat() if success else None,
             "last_update": updated.isoformat() if updated else None,
+            "last_check_result": self.last_check_result,
         }
 
     async def _download(self):
