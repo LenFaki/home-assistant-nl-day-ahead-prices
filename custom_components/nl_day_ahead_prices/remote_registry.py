@@ -172,15 +172,16 @@ class RemoteRegistryManager:
                 newest_revision = max(self.active.revision, self.cached_registry.revision if self.cached_registry else 0)
                 if candidate.revision <= newest_revision:
                     stage = "storage_error"
+                    self.last_check_result = "not_modified" if self.enabled else "disabled"
                     await self.store.async_save(self._envelope(self.payload, now, self.last_update))
                     self.last_success = now
-                    self.last_check_result = "not_modified" if self.enabled else "disabled"
                     if (candidate.revision == self.active.revision and self.source == "cached_remote"
                             and payload == self.payload):
                         self.source = self.cached_source = "remote"
                     self.notify()
                     return False
                 stage = "storage_error"
+                self.last_check_result = "success" if self.enabled else "disabled"
                 await self.store.async_save(self._envelope(payload, now, now))
             except (aiohttp.ClientError, TimeoutError, OSError, ValueError, TypeError, KeyError, OverflowError, RecursionError) as err:
                 # Do not log payloads or response bodies, including remotely supplied strings.
@@ -194,6 +195,11 @@ class RemoteRegistryManager:
                 )
                 if not self.enabled:
                     self.last_check_result = "disabled"
+                if stage != "storage_error":
+                    try:
+                        await self.store.async_save(self._envelope(self.payload, self.last_success, self.last_update))
+                    except OSError:
+                        pass
                 self.notify()
                 return False
             self.payload = payload
