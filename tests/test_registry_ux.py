@@ -184,6 +184,34 @@ async def test_success_new_revision_status_and_safe_attributes():
     assert info["revision"] == 5
 
 
+async def test_registry_check_result_survives_restart():
+    manager, _, store = setup(4, 5)
+    await manager.async_load()
+    await manager.async_check()
+    assert manager.last_check_result == "success"
+    assert store.data["last_check_result"] == "success"
+
+    restarted = remote.RemoteRegistryManager(manager.session, store, registry.load_registry(), enabled=True, now=lambda: NOW)
+    await restarted.async_load()
+    assert restarted.last_check_result == "success"
+    assert restarted.last_check == NOW
+    assert restarted.last_success == NOW
+    assert restarted.last_update == NOW
+
+
+async def test_v220_cache_infers_previous_success_without_result_field():
+    candidate = payload(4)
+    store = Store({
+        "registry": candidate,
+        "last_check": NOW.isoformat(),
+        "last_success": NOW.isoformat(),
+        "last_update": NOW.isoformat(),
+    })
+    manager = remote.RemoteRegistryManager(Mock(), store, registry.load_registry(), enabled=True, now=lambda: NOW)
+    await manager.async_load()
+    assert manager.last_check_result == "success"
+
+
 async def test_tariff_status_current_amsterdam_date_and_revision():
     manager, _, _ = setup(4)
     await manager.async_load()
@@ -194,6 +222,10 @@ async def test_tariff_status_current_amsterdam_date_and_revision():
     assert info["purchase_fee_import"] == 0.018
     assert info["registry_revision"] == 4
     assert info["registry_source"] == "cached_remote"
+    metadata = registry.tariff_metadata(profile, instant)
+    assert metadata["supplier_registry_schema_version"] == 1
+    assert metadata["supplier_registry_revision"] == 4
+    assert metadata["supplier_registry_version"] == 1  # legacy schema-version alias
     # A verification timestamp in the future must not claim current freshness.
     assert info["freshness"] == "unknown"
     info = tariff_status(registry.get_supplier_tariff("tibber", NOW), NOW, manager)
