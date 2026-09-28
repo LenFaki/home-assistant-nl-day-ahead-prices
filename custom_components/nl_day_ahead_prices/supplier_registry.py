@@ -259,6 +259,9 @@ def tariff_metadata(profile: SupplierProfile, on: date | datetime | None = None)
         "supplier_tariff_source_url": profile.source_url,
         "supplier_tariff_age_days": age,
         "supplier_settlement_resolution": resolution,
+        # Keep the legacy name for dashboard compatibility; it is the schema version, not the registry revision.
         "supplier_registry_version": profile.registry_version,
+        "supplier_registry_schema_version": profile.registry_version,
+        "supplier_registry_revision": None if custom else profile.registry_revision,
         "supplier_registry_source": "custom" if custom else profile.registry_source,
     }

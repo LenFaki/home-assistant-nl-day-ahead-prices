@@ -227,3 +227,28 @@ def test_tibber_tomorrow_fee_changes_before_midnight(sensor_module, monkeypatch,
     assert sensor_module._average_tomorrow(sensor.coordinator.data, now, sensor.entry) == pytest.approx(base + tomorrow_fee)
     before_midnight = datetime(2026, 8, 31, 23, 59, tzinfo=zone)
     assert sensor_module._next_hour_all_in(sensor.coordinator.data, before_midnight, sensor.entry) == pytest.approx(base + tomorrow_fee)
+
+
+def test_average_all_in_sensor_keeps_statistics_unit(sensor_module):
+    description = next(item for item in sensor_module.SENSORS if item.key == "average_all_in_price_today")
+    assert description.native_unit_of_measurement == "EUR/kWh"
+    assert description.state_class == "measurement"
+    sensor = make_sensor(sensor_module, day_prices("2026-09-08", 15))
+    sensor.entity_description = description
+    assert sensor.native_value is not None
+    assert sensor.entity_description.native_unit_of_measurement == "EUR/kWh"
+
+
+def test_large_chart_attributes_are_unrecorded_but_remain_public(sensor_module):
+    sensor = make_sensor(sensor_module, day_prices("2026-09-08", 15))
+    sensor.coordinator.data.result.prices_tomorrow = day_prices("2026-09-09", 15)
+    attrs = sensor.extra_state_attributes
+    large = {
+        "prices", "prices_today", "prices_tomorrow",
+        "all_in_prices", "all_in_prices_today", "all_in_prices_tomorrow",
+        "raw_prices", "raw_prices_today", "raw_prices_tomorrow",
+    }
+    assert large <= attrs.keys()
+    assert large <= sensor_module.NLDayAheadPriceSensor._unrecorded_attributes
+    # Dashboards still receive the exact public arrays; only recorder history omits them.
+    assert attrs["all_in_prices"] == attrs["all_in_prices_today"] + attrs["all_in_prices_tomorrow"]

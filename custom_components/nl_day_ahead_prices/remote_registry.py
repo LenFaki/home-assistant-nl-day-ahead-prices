@@ -94,6 +94,12 @@ class RemoteRegistryManager:
                     self.last_check = times["last_check"]
                     self.last_success = times["last_success"]
                     self.last_update = times["last_update"]
+                    result = cached.get("last_check_result")
+                    if isinstance(result, str):
+                        self.last_check_result = result
+                    elif self.last_success is not None:
+                        # Backward compatibility with v2.2.0 cache envelopes.
+                        self.last_check_result = "success" if self.last_update == self.last_success else "not_modified"
                     if candidate is not None and candidate.revision > self.active.revision:
                         self.payload = cached["registry"]
                         self.cached_registry = candidate
@@ -132,6 +138,7 @@ class RemoteRegistryManager:
             "last_check": self.last_check.isoformat() if self.last_check else None,
             "last_success": success.isoformat() if success else None,
             "last_update": updated.isoformat() if updated else None,
+            "last_check_result": self.last_check_result,
         }
 
     async def _download(self):
@@ -165,15 +172,16 @@ class RemoteRegistryManager:
                 newest_revision = max(self.active.revision, self.cached_registry.revision if self.cached_registry else 0)
                 if candidate.revision <= newest_revision:
                     stage = "storage_error"
+                    self.last_check_result = "not_modified" if self.enabled else "disabled"
                     await self.store.async_save(self._envelope(self.payload, now, self.last_update))
                     self.last_success = now
-                    self.last_check_result = "not_modified" if self.enabled else "disabled"
                     if (candidate.revision == self.active.revision and self.source == "cached_remote"
                             and payload == self.payload):
                         self.source = self.cached_source = "remote"
                     self.notify()
                     return False
                 stage = "storage_error"
+                self.last_check_result = "success" if self.enabled else "disabled"
                 await self.store.async_save(self._envelope(payload, now, now))
             except (aiohttp.ClientError, TimeoutError, OSError, ValueError, TypeError, KeyError, OverflowError, RecursionError) as err:
                 # Do not log payloads or response bodies, including remotely supplied strings.
@@ -187,6 +195,11 @@ class RemoteRegistryManager:
                 )
                 if not self.enabled:
                     self.last_check_result = "disabled"
+                if stage != "storage_error":
+                    try:
+                        await self.store.async_save(self._envelope(self.payload, self.last_success, self.last_update))
+                    except OSError:
+                        pass
                 self.notify()
                 return False
             self.payload = payload

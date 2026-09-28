@@ -659,6 +659,15 @@ class NLDayAheadPriceSensor(CoordinatorEntity[NLDayAheadPricesCoordinator], Sens
 
     entity_description: NLPriceSensorDescription
     _attr_has_entity_name = True
+    # Keep chart arrays available to dashboards/ApexCharts while preventing the
+    # recorder from storing the same large payload on every price sensor.
+    _unrecorded_attributes = frozenset({
+        "prices", "prices_today", "prices_tomorrow",
+        "all_in_prices", "all_in_prices_today", "all_in_prices_tomorrow",
+        "raw_prices", "raw_prices_today", "raw_prices_tomorrow",
+        "raw_today", "raw_tomorrow", "supplier_profile",
+        "best_periods", "peak_periods",
+    })
 
     def __init__(
         self,
