@@ -227,3 +227,13 @@ def test_tibber_tomorrow_fee_changes_before_midnight(sensor_module, monkeypatch,
     assert sensor_module._average_tomorrow(sensor.coordinator.data, now, sensor.entry) == pytest.approx(base + tomorrow_fee)
     before_midnight = datetime(2026, 8, 31, 23, 59, tzinfo=zone)
     assert sensor_module._next_hour_all_in(sensor.coordinator.data, before_midnight, sensor.entry) == pytest.approx(base + tomorrow_fee)
+
+
+def test_average_all_in_sensor_keeps_statistics_unit(sensor_module):
+    description = next(item for item in sensor_module.SENSORS if item.key == "average_all_in_price_today")
+    assert description.native_unit_of_measurement == "EUR/kWh"
+    assert description.state_class == "measurement"
+    sensor = make_sensor(sensor_module, day_prices("2026-09-08", 15))
+    sensor.entity_description = description
+    assert sensor.native_value is not None
+    assert sensor.entity_description.native_unit_of_measurement == "EUR/kWh"
