@@ -242,8 +242,28 @@ def _all_in_entries(data: PriceData, entry: ConfigEntry, prices: list | None = N
     )
 
 
-def _analysis_value(key: str, data: PriceData, now: datetime, entry: ConfigEntry, runtime: dict[str, Any]) -> Any:
-    prices = _all_in_entries(data, entry)
+def _cached_all_in_entries(
+    coordinator: NLDayAheadPricesCoordinator,
+    data: PriceData,
+    entry: ConfigEntry,
+) -> list:
+    """Return all-in prices cached for the current coordinator cycle."""
+    return coordinator.cached_analysis("all_in_entries", lambda: _all_in_entries(data, entry))
+
+
+def _analysis_value(
+    key: str,
+    data: PriceData,
+    now: datetime,
+    entry: ConfigEntry,
+    runtime: dict[str, Any],
+    coordinator: NLDayAheadPricesCoordinator | None = None,
+) -> Any:
+    prices = (
+        _cached_all_in_entries(coordinator, data, entry)
+        if coordinator is not None
+        else _all_in_entries(data, entry)
+    )
     if key.startswith("v2:"):
         return _v2_data(key.removeprefix("v2:"), data, now, entry)["state"]
     if key.startswith("forecast_"):
@@ -719,6 +739,7 @@ class NLDayAheadPriceSensor(CoordinatorEntity[NLDayAheadPricesCoordinator], Sens
                     dt_util.now(),
                     self.entry,
                     self.coordinator.runtime_options,
+                    self.coordinator,
                 )
         else:
             value = self.entity_description.value_fn(self.coordinator.data, dt_util.now(), self.entry)
