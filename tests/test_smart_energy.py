@@ -3,7 +3,6 @@ from datetime import datetime, timedelta, timezone
 from custom_components.nl_day_ahead_prices.models import PriceEntry
 from custom_components.nl_day_ahead_prices.smart_energy import build_smart_energy_advice
 
-
 NOW = datetime(2026, 9, 30, 12, 0, tzinfo=timezone.utc)
 
 
