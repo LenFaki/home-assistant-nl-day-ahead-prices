@@ -72,3 +72,60 @@ def test_missing_gas_price_remains_generic():
     result = build_smart_energy_advice(electricity_price=0.20, now=NOW, language="nl")
     assert result["state"] in {"cheap_grid", "wait"}
     assert "gasprijssensor" in result["recommendation"]
+
+
+def test_solar_production_is_not_surplus_when_export_is_below_threshold():
+    result = build_smart_energy_advice(
+        electricity_price=0.25,
+        gas_price_per_m3=1.30,
+        solar_power_w=2500,
+        grid_power_w=-300,
+        now=NOW,
+    )
+    assert result["solar_production"] is True
+    assert result["measured_solar_surplus_w"] == 300
+    assert result["solar_surplus"] is False
+
+
+def test_grid_export_can_establish_surplus_without_solar_sensor():
+    result = build_smart_energy_advice(
+        electricity_price=0.25,
+        gas_price_per_m3=1.30,
+        grid_power_w=-700,
+        now=NOW,
+    )
+    assert result["solar_surplus"] is True
+    assert result["state"] == "solar_surplus"
+
+
+def test_equal_heat_cost_prefers_electricity():
+    gas_price = 0.20 * 9.769 * 0.90
+    result = build_smart_energy_advice(
+        electricity_price=0.20,
+        gas_price_per_m3=gas_price,
+        now=NOW,
+    )
+    assert result["cheapest_now"] == "electricity"
+    assert result["state"] == "cheap_grid"
+
+
+def test_future_price_at_exact_five_percent_threshold_is_detected():
+    prices = [PriceEntry(NOW + timedelta(minutes=15), 0.19)]
+    result = build_smart_energy_advice(
+        electricity_price=0.20,
+        future_prices=prices,
+        now=NOW,
+    )
+    assert result["next_better_price"] == 0.19
+    assert result["minutes_until_better"] == 15
+
+
+def test_zero_gas_price_is_supported():
+    result = build_smart_energy_advice(
+        electricity_price=0.10,
+        gas_price_per_m3=0.0,
+        now=NOW,
+    )
+    assert result["gas_heat_cost_per_kwh"] == 0.0
+    assert result["cheapest_now"] == "gas"
+    assert result["state"] == "gas"
