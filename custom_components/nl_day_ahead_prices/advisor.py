@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
-
-from homeassistant.util import dt as dt_util
 
 
 def build_price_advice(
@@ -118,7 +116,7 @@ def _upcoming_price_context(
             "best_upcoming_time": None,
             "best_upcoming_price": None,
         }
-    now = now or dt_util.now()
+    now = now or datetime.now(timezone.utc)
     future = sorted(
         (item for item in prices if item.time > now),
         key=lambda item: item.time,
