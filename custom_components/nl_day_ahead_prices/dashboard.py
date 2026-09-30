@@ -25,16 +25,19 @@ def generate_dashboard_yaml(
           - type: markdown
             title: EnerPrice Advisor
             content: |-
-              {% set a = states.sensor.nl_day_ahead_price_advisor %}
-              {% set state = a.state %}
-              {% set icon = {'excellent':'🟢','good':'🟢','neutral':'🟡','avoid':'🟠','critical':'🔴'}.get(state, '⚪') %}
-              # {{ icon }} {{ a.attributes.title | default('EnerPrice') }}
+              {% set a = states('sensor.nl_day_ahead_price_advisor') %}
+              {% set attrs = state_attr('sensor.nl_day_ahead_price_advisor', 'summary') %}
+              {% set title = state_attr('sensor.nl_day_ahead_price_advisor', 'title') | default('EnerPrice', true) %}
+              {% set icon = {'excellent':'🟢','good':'🟢','neutral':'🟡','avoid':'🟠','critical':'🔴'}.get(a, '⚪') %}
+              # {{ icon }} {{ title }}
               **{{ states('sensor.nl_day_ahead_prices_current_all_in_price') }} €/kWh** · score {{ states('sensor.nl_day_ahead_price_score') }}/100
 
-              {{ a.attributes.summary | default(a.attributes.recommendation, true) }}
+              {{ attrs | default(state_attr('sensor.nl_day_ahead_price_advisor', 'recommendation'), true) }}
 
-              {% if a.attributes.next_better_time %}
-              **Volgende gunstiger prijs:** {{ as_timestamp(a.attributes.next_better_time) | timestamp_custom('%H:%M') }} · {{ a.attributes.next_better_price | round(3) }} €/kWh
+              {% set better_time = state_attr('sensor.nl_day_ahead_price_advisor', 'next_better_time') %}
+              {% set better_price = state_attr('sensor.nl_day_ahead_price_advisor', 'next_better_price') %}
+              {% if better_time and better_price is not none %}
+              **Volgende gunstiger prijs:** {{ as_timestamp(better_time) | timestamp_custom('%H:%M') }} · {{ better_price | round(3) }} €/kWh
               {% endif %}
           - type: tile
             entity: sensor.nl_day_ahead_price_advisor
