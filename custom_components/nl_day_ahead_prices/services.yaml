@@ -198,6 +198,11 @@ get_smart_energy_advice:
   name: Get smart energy advice
   description: Compare solar surplus, grid electricity, gas heat and a cheaper upcoming electricity interval without controlling devices.
   fields:
+    config_entry_id:
+      name: EnerPrice config entry ID
+      description: Optional config entry ID. Required when more than one EnerPrice configuration is loaded.
+      selector:
+        text: {}
     gas_price_entity:
       name: Gas price entity
       description: Optional Home Assistant entity containing the current gas price in EUR/m³.
@@ -266,7 +271,7 @@ get_smart_energy_advice:
           mode: box
     solar_surplus_threshold_w:
       name: Solar surplus threshold
-      description: Minimum measured solar/export power before self-consumption gets priority.
+      description: Minimum grid export used as measured solar surplus when a grid meter is supplied; solar production is used only when grid power is unavailable.
       default: 500
       selector:
         number:
