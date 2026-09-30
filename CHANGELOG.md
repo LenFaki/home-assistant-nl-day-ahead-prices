@@ -2,6 +2,27 @@
 
 All notable changes to **EnerPrice** are documented here.
 
+## 2.3.0
+
+### Added
+
+- Extended the Price Advisor with future price context, including the next materially cheaper interval, time until that interval, the next better price, percentage savings for positive prices, and the best upcoming price.
+- Added concise Dutch and English Advisor summaries for dashboards and practical flexible-load decisions.
+- Added CasaRegie-inspired compact, full, and energy-advisor dashboard layouts using native Home Assistant Sections, headings, tiles, and Markdown, with ApexCharts in the richer layouts.
+- Generated dashboards now resolve the actual EnerPrice entity IDs from the Home Assistant Entity Registry, so renamed or prefixed entities can be used automatically.
+
+### Improved
+
+- Made Advisor timing resolution-aware for hourly and quarter-hour prices and safe for negative prices.
+- Made generated Advisor Markdown resilient when entities are temporarily unknown or unavailable.
+- Added regression coverage for future-price advice, negative prices, quarter-hour wait times, compact/full dashboard output, and renamed Home Assistant entities.
+
+### Compatibility
+
+- Existing entity IDs, unique IDs, services, price calculations, supplier tariffs, and public price-array schemas remain compatible.
+- The integration domain remains `nl_day_ahead_prices`.
+- EnerPrice continues to provide advice and generated YAML; it does not directly switch user devices.
+
 ## 2.2.3
 
 ### Improved
