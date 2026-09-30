@@ -20,14 +20,14 @@ def test_prefers_solar_surplus():
 
 def test_compares_useful_heat_costs():
     result = build_smart_energy_advice(
-        electricity_price=0.18,
+        electricity_price=0.14,
         gas_price_per_m3=1.40,
         electric_efficiency=1.0,
         gas_efficiency=0.90,
         now=NOW,
     )
     assert result["state"] == "cheap_grid"
-    assert result["electric_heat_cost_per_kwh"] == 0.18
+    assert result["electric_heat_cost_per_kwh"] == 0.14
     assert result["gas_heat_cost_per_kwh"] > 0.15
 
 
