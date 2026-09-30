@@ -266,12 +266,13 @@ def _cached_trend(
     runtime: dict[str, Any],
 ) -> dict[str, Any]:
     """Return trend analysis shared by sensors in the current interval."""
-    factory = lambda: trend_for_prices(
-        prices,
-        now,
-        float(runtime[CONF_STABLE_TREND_THRESHOLD]),
-        float(runtime[CONF_STRONG_TREND_THRESHOLD]),
-    )
+    def factory():
+        return trend_for_prices(
+            prices,
+            now,
+            float(runtime[CONF_STABLE_TREND_THRESHOLD]),
+            float(runtime[CONF_STRONG_TREND_THRESHOLD]),
+        )
     return _cached_value(coordinator, "trend", factory)
 
 
@@ -281,7 +282,8 @@ def _cached_ratings(
     now: datetime,
 ) -> tuple[str, str]:
     """Return price ratings shared by sensors in the current interval."""
-    factory = lambda: price_ratings(current_price(prices, now), prices)
+    def factory():
+        return price_ratings(current_price(prices, now), prices)
     return _cached_value(coordinator, "ratings", factory)
 
 
