@@ -80,6 +80,7 @@ SERVICE_SCHEMAS = {
     ),
     "get_smart_energy_advice": vol.Schema(
         {
+            vol.Optional("config_entry_id"): cv.string,
             vol.Optional("gas_price_entity"): cv.entity_id,
             vol.Optional("solar_power_entity"): cv.entity_id,
             vol.Optional("grid_power_entity"): cv.entity_id,
@@ -139,7 +140,7 @@ def async_register_v2_services(hass: HomeAssistant) -> None:
             return {"yaml": generate_dashboard_yaml(**data, entity_ids=entity_ids)}
         if name == "generate_automation_yaml":
             return {"yaml": generate_automation_yaml(**data)}
-        coordinator = _coordinator(hass)
+        coordinator = _coordinator(hass, data.pop("config_entry_id", None))
         if coordinator is None or coordinator.data is None:
             return {"error": "Price data is not available"}
         if name == "get_smart_energy_advice":
@@ -205,8 +206,13 @@ def async_unregister_v2_services(hass: HomeAssistant) -> None:
         hass.services.async_remove(DOMAIN, service)
 
 
-def _coordinator(hass: HomeAssistant):
-    return next(iter(hass.data.get(DOMAIN, {}).values()), None)
+def _coordinator(hass: HomeAssistant, config_entry_id: str | None = None):
+    entries = hass.data.get(DOMAIN, {})
+    if config_entry_id:
+        return entries.get(config_entry_id)
+    if len(entries) == 1:
+        return next(iter(entries.values()))
+    return None
 
 
 def _dashboard_entity_ids(hass: HomeAssistant, config_entry_id: str) -> dict[str, str]:
