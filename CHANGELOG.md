@@ -2,6 +2,21 @@
 
 All notable changes to **EnerPrice** are documented here.
 
+## 2.2.3
+
+### Improved
+
+- Reused shared all-in price data across sensor state and attribute updates to reduce repeated supplier-price calculations.
+- Cached trend, rating, volatility and best/peak-period analysis within a coordinator cycle when inputs are identical.
+- Avoided unnecessary trend calculations for price-rating sensors.
+- Added deterministic regression coverage to ensure price trajectory state and attributes reuse expensive analysis work.
+
+### Compatibility
+
+- No supplier tariff amounts or price formulas changed.
+- Existing entity IDs, public sensor attributes, units and analysis semantics remain unchanged.
+- The integration domain remains `nl_day_ahead_prices`.
+
 ## 2.2.2
 
 ### Improved
