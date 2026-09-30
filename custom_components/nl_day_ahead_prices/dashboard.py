@@ -15,73 +15,127 @@ def generate_dashboard_yaml(
     include_battery_strategy: bool = False,
     theme: str = "auto",
 ) -> str:
-    """Generate a usable manual Lovelace dashboard."""
-    entities = []
-    if include_market_price:
-        entities.append("sensor.nl_day_ahead_prices_current_market_price")
-    if include_all_in_price:
-        entities.append("sensor.nl_day_ahead_prices_current_all_in_price")
-    if include_price_advisor:
-        entities.extend(["sensor.nl_day_ahead_price_advisor", "sensor.nl_day_ahead_price_score"])
-    if include_supplier_info:
-        entities.extend(
-            [
-                "sensor.nl_day_ahead_prices_selected_supplier",
-                "sensor.nl_day_ahead_prices_effective_price_resolution",
-                "sensor.nl_day_ahead_prices_current_provider",
-            ]
-        )
-    entities.append("binary_sensor.nl_day_ahead_prices_tomorrow_prices_available")
-    rows = "\n".join(f"              - {entity}" for entity in entities)
-    helper_cards = ""
-    if include_best_periods:
-        helper_cards += """
-      - type: entities
-        title: Best and peak periods
-        entities:
-          - binary_sensor.nl_day_ahead_prices_best_price_period
-          - binary_sensor.nl_day_ahead_prices_peak_price_period
-          - sensor.nl_day_ahead_prices_next_best_price_period_start
-          - sensor.nl_day_ahead_prices_next_peak_price_period_start
-"""
-    if include_ev_planner or include_battery_strategy:
-        helper_cards += """
-      - type: markdown
-        content: >-
-          Use Developer Tools > Actions to run the EV charging or battery
-          strategy planner. The returned planning data can be used in scripts.
-"""
+    """Generate a CasaRegie-inspired EnerPrice Sections dashboard."""
     theme_line = "" if theme == "auto" else f"theme: {theme}\n"
     columns = 1 if dashboard_type == "compact" else 2
+
+    advisor = ""
+    if include_price_advisor:
+        advisor = """
+          - type: markdown
+            title: EnerPrice Advisor
+            content: |-
+              {% set a = states.sensor.nl_day_ahead_price_advisor %}
+              {% set state = a.state %}
+              {% set icon = {'excellent':'🟢','good':'🟢','neutral':'🟡','avoid':'🟠','critical':'🔴'}.get(state, '⚪') %}
+              # {{ icon }} {{ a.attributes.title | default('EnerPrice') }}
+              **{{ states('sensor.nl_day_ahead_prices_current_all_in_price') }} €/kWh** · score {{ states('sensor.nl_day_ahead_price_score') }}/100
+
+              {{ a.attributes.summary | default(a.attributes.recommendation, true) }}
+
+              {% if a.attributes.next_better_time %}
+              **Volgende gunstiger prijs:** {{ as_timestamp(a.attributes.next_better_time) | timestamp_custom('%H:%M') }} · {{ a.attributes.next_better_price | round(3) }} €/kWh
+              {% endif %}
+          - type: tile
+            entity: sensor.nl_day_ahead_price_advisor
+            name: Advies
+            vertical: false
+          - type: tile
+            entity: sensor.nl_day_ahead_price_score
+            name: Prijsscore
+            vertical: false
+"""
+
+    price_tiles = ""
+    if include_all_in_price:
+        price_tiles += """
+          - type: tile
+            entity: sensor.nl_day_ahead_prices_current_all_in_price
+            name: All-in prijs nu
+"""
+    if include_market_price:
+        price_tiles += """
+          - type: tile
+            entity: sensor.nl_day_ahead_prices_current_market_price
+            name: Marktprijs nu
+"""
+
+    details = ""
+    if dashboard_type != "compact":
+        details = """
+      - type: grid
+        cards:
+          - type: heading
+            heading: Vooruitblik
+            icon: mdi:clock-fast
+          - type: tile
+            entity: binary_sensor.nl_day_ahead_prices_tomorrow_prices_available
+            name: Prijzen morgen
+"""
+        if include_best_periods:
+            details += """
+          - type: tile
+            entity: binary_sensor.nl_day_ahead_prices_best_price_period
+            name: Goedkoop prijsblok actief
+          - type: tile
+            entity: sensor.nl_day_ahead_prices_next_best_price_period_start
+            name: Volgende goedkope periode
+"""
+        if include_supplier_info:
+            details += """
+          - type: tile
+            entity: sensor.nl_day_ahead_prices_selected_supplier
+            name: Leverancier
+          - type: tile
+            entity: sensor.nl_day_ahead_prices_current_provider
+            name: Prijsbron
+"""
+
+    graph = ""
+    if dashboard_type in {"full", "energy_advisor"}:
+        graph = """
+      - type: grid
+        cards:
+          - type: heading
+            heading: Prijsverloop
+            icon: mdi:chart-line
+          - type: custom:apexcharts-card
+            graph_span: 48h
+            span:
+              start: day
+            now:
+              show: true
+              label: Nu
+            series:
+              - entity: sensor.nl_day_ahead_prices_current_all_in_price
+                name: All-in
+                data_generator: |
+                  return [...(entity.attributes.all_in_prices_today ?? []), ...(entity.attributes.all_in_prices_tomorrow ?? [])]
+                    .map(p => [new Date(p.time).getTime(), p.price]);
+"""
+
+    planner_note = ""
+    if include_ev_planner or include_battery_strategy:
+        planner_note = """
+          - type: markdown
+            content: >-
+              Gebruik Ontwikkelaarstools > Acties voor de EnerPrice EV- of
+              batterijplanner. De planner wijzigt apparaten niet zelfstandig.
+"""
+
     return f"""{theme_line}title: EnerPrice
 views:
-  - title: Energy advisor
+  - title: Energieadvies
     path: energy-advisor
     type: sections
     max_columns: {columns}
     sections:
       - type: grid
         cards:
-          - type: entities
-            title: EnerPrice
-            entities:
-{rows}
-          - type: custom:apexcharts-card
-            graph_span: 48h
-            span:
-              start: day
-            series:
-              - entity: sensor.nl_day_ahead_prices_current_market_price
-                name: Market
-                data_generator: |
-                  return entity.attributes.prices.map(p => [new Date(p.time).getTime(), p.price]);
-              - entity: sensor.nl_day_ahead_prices_current_all_in_price
-                name: All-in
-                data_generator: |
-                  return [...entity.attributes.all_in_prices_today, ...entity.attributes.all_in_prices_tomorrow]
-                    .map(p => [new Date(p.time).getTime(), p.price]);
-{helper_cards}"""
-
+          - type: heading
+            heading: Energieadvies
+            icon: mdi:lightning-bolt-circle
+{advisor}{price_tiles}{planner_note}{details}{graph}"""
 
 def generate_automation_yaml(
     automation_type: str,
