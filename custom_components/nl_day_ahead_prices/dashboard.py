@@ -137,19 +137,19 @@ def generate_dashboard_yaml(
               batterijplanner. De planner wijzigt apparaten niet zelfstandig.
 """
 
-    return f"""{{theme_line}}title: EnerPrice
+    return f"""{theme_line}title: EnerPrice
 views:
   - title: Energieadvies
     path: energy-advisor
     type: sections
-    max_columns: {{columns}}
+    max_columns: {columns}
     sections:
       - type: grid
         cards:
           - type: heading
             heading: Energieadvies
             icon: mdi:lightning-bolt-circle
-{{advisor}}{{price_tiles}}{{planner_note}}{{details}}{{graph}}"""
+{advisor}{price_tiles}{planner_note}{details}{graph}"""
 
 def generate_automation_yaml(
     automation_type: str,
