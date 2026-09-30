@@ -252,3 +252,54 @@ def test_large_chart_attributes_are_unrecorded_but_remain_public(sensor_module):
     assert large <= sensor_module.NLDayAheadPriceSensor._unrecorded_attributes
     # Dashboards still receive the exact public arrays; only recorder history omits them.
     assert attrs["all_in_prices"] == attrs["all_in_prices_today"] + attrs["all_in_prices_tomorrow"]
+
+
+def test_trajectory_reuses_all_in_and_trend_within_coordinator_cycle(sensor_module, monkeypatch):
+    """Trajectory state and attributes must share expensive analysis work."""
+    sensor = make_sensor(sensor_module, day_prices("2026-09-08", 15), extended=True)
+    description = next(item for item in sensor_module.SENSORS if item.key == "price_trajectory")
+    sensor.entity_description = description
+
+    cache = {}
+    def cached_analysis(key, factory):
+        if key not in cache:
+            cache[key] = factory()
+        return cache[key]
+    sensor.coordinator.cached_analysis = cached_analysis
+
+    original_all_in = sensor_module._all_in_entries
+    original_trend = sensor_module.trend_for_prices
+    all_in_calls = 0
+    trend_calls = 0
+
+    def counted_all_in(*args, **kwargs):
+        nonlocal all_in_calls
+        all_in_calls += 1
+        return original_all_in(*args, **kwargs)
+
+    def counted_trend(*args, **kwargs):
+        nonlocal trend_calls
+        trend_calls += 1
+        return original_trend(*args, **kwargs)
+
+    monkeypatch.setattr(sensor_module, "_all_in_entries", counted_all_in)
+    monkeypatch.setattr(sensor_module, "trend_for_prices", counted_trend)
+
+    assert sensor.native_value is not None
+    attrs = sensor.extra_state_attributes
+    assert attrs["trend"] is not None
+    assert all_in_calls == 1
+    assert trend_calls == 1
+
+
+def test_rating_does_not_calculate_trend(sensor_module, monkeypatch):
+    """Rating sensors should not pay for unrelated trend analysis."""
+    sensor = make_sensor(sensor_module, day_prices("2026-09-08", 15))
+    description = next(item for item in sensor_module.SENSORS if item.key == "price_rating")
+    sensor.entity_description = description
+    monkeypatch.setattr(
+        sensor_module,
+        "trend_for_prices",
+        Mock(side_effect=AssertionError("rating must not calculate trend")),
+    )
+    assert sensor.native_value in {"low", "normal", "high"}
