@@ -24,7 +24,6 @@ from .analysis.trend import trend_for_prices
 from .analysis.volatility import volatility
 from .calculations import (
     all_in_entries_for_supplier,
-    build_all_in_price_attributes_for_supplier,
     calculate_monthly_fee,
     calculate_supplier_export_fee,
     calculate_supplier_fee,
@@ -254,6 +253,12 @@ def _cached_all_in_entries(
     return cached_analysis("all_in_entries", lambda: _all_in_entries(data, entry))
 
 
+def _cached_value(coordinator: NLDayAheadPricesCoordinator | None, key: str, factory):
+    """Use the coordinator cache when available, with a direct-call fallback."""
+    cached_analysis = getattr(coordinator, "cached_analysis", None)
+    return cached_analysis(key, factory) if cached_analysis is not None else factory()
+
+
 def _cached_trend(
     coordinator: NLDayAheadPricesCoordinator | None,
     prices: list,
@@ -267,8 +272,7 @@ def _cached_trend(
         float(runtime[CONF_STABLE_TREND_THRESHOLD]),
         float(runtime[CONF_STRONG_TREND_THRESHOLD]),
     )
-    cached_analysis = getattr(coordinator, "cached_analysis", None)
-    return cached_analysis("trend", factory) if cached_analysis is not None else factory()
+    return _cached_value(coordinator, "trend", factory)
 
 
 def _cached_ratings(
@@ -278,8 +282,7 @@ def _cached_ratings(
 ) -> tuple[str, str]:
     """Return price ratings shared by sensors in the current interval."""
     factory = lambda: price_ratings(current_price(prices, now), prices)
-    cached_analysis = getattr(coordinator, "cached_analysis", None)
-    return cached_analysis("ratings", factory) if cached_analysis is not None else factory()
+    return _cached_value(coordinator, "ratings", factory)
 
 
 def _analysis_value(
@@ -826,8 +829,8 @@ class NLDayAheadPriceSensor(CoordinatorEntity[NLDayAheadPricesCoordinator], Sens
         current_all_in = current_price(all_in_entries, now)
         rating_3, rating_5 = _cached_ratings(self.coordinator, all_in_entries, now)
         trend = _cached_trend(self.coordinator, all_in_entries, now, self.coordinator.runtime_options)
-        day_stats = self.coordinator.cached_analysis(
-            "volatility_today", lambda: volatility(all_in_entries[:today_count])
+        day_stats = _cached_value(
+            self.coordinator, "volatility_today", lambda: volatility(all_in_entries[:today_count])
         )
         base.update({
             "raw_today": data.result.raw_today,
@@ -854,11 +857,13 @@ class NLDayAheadPriceSensor(CoordinatorEntity[NLDayAheadPricesCoordinator], Sens
             "day_median": day_stats.get("median_price"),
         })
         if self.coordinator.runtime_options[CONF_CHART_HELPERS]:
-            best_periods = self.coordinator.cached_analysis(
+            best_periods = _cached_value(
+                self.coordinator,
                 "best_periods",
                 lambda: _periods(data, self.entry, self.coordinator.runtime_options, peak=False, prices=all_in_entries),
             )
-            peak_periods = self.coordinator.cached_analysis(
+            peak_periods = _cached_value(
+                self.coordinator,
                 "peak_periods",
                 lambda: _periods(data, self.entry, self.coordinator.runtime_options, peak=True, prices=all_in_entries),
             )
