@@ -1,18 +1,18 @@
 # Changelog
 
-## 2.4.0 - In development
+## 2.4.0 - 2026-09-30
 
 ### Added
 - Generic Smart Energy Advisor response service combining EnerPrice all-in electricity prices with optional Home Assistant gas-price, solar-production and grid-power entities.
 - Useful-heat cost comparison between grid-electric and gas heating, with configurable electric efficiency, gas efficiency and gas energy content.
-- Solar-surplus priority and forward-looking `wait` advice when a materially cheaper electricity interval is approaching.
-- Direct numeric service inputs for testing and advanced automations without vendor-specific dependencies.
-- Full Dutch README (`README.nl.md`) with an English/Nederlands language switch.
+- Solar-surplus priority based on measured grid export when available, separate solar-production context, and forward-looking `wait` advice when a materially cheaper electricity interval is approaching.
+- Direct numeric service inputs for testing and advanced automations without vendor-specific dependencies.\n- Optional `config_entry_id` selection for Smart Energy Advisor use with multiple EnerPrice configurations.\n- English and Dutch version-independent README header artwork.
+- Expanded Dutch README (`README.nl.md`) with an English/Nederlands language switch and documentation for planners, services, runtime settings, chart attributes and migration.
 
 ### Safety and compatibility
 - EnerPrice remains advisory and does not directly switch boilers or other loads.
 - Existing entities, services, tariff calculations and the `nl_day_ahead_prices` domain remain unchanged.
-- Smart Energy Advisor inputs are optional; existing installations require no new configuration.
+- Smart Energy Advisor inputs are optional; existing installations require no new configuration.\n- Added edge-case coverage for measured solar surplus, equal heat costs, zero gas price and the exact future-price threshold.
 
 
 All notable changes to **EnerPrice** are documented here.
