@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="brand/enerprice-header.png" alt="EnerPrice - Dynamic Energy Prices for Home Assistant" width="100%">
+  <img src="brand/enerprice-header-en.png" alt="EnerPrice - Dynamic Energy Prices for Home Assistant" width="100%">
 </p>
 
 # EnerPrice
