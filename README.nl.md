@@ -71,7 +71,7 @@ response_variable: energy_advice
 ```
 
 Positief netvermogen wordt behandeld als afname en negatief netvermogen als
-teruglevering. De drempel waarbij zonne-overschot voorrang krijgt is instelbaar.
+teruglevering. Wanneer een netvermogensensor beschikbaar is, gebruikt EnerPrice de werkelijk gemeten teruglevering als zonne-overschot. Zonneproductie en zonne-overschot blijven afzonderlijke begrippen. Alleen zonder netmeting wordt de zonneproductie zelf tegen de ingestelde drempel getoetst.
 Voor testen kunnen ook directe numerieke waarden worden meegegeven in plaats
 van entiteiten.
 
@@ -279,6 +279,84 @@ Controleer of de gasprijs in EUR/m³ staat en of zonne- en netvermogens in watt
 worden aangeleverd. Controleer ook de tekenconventie van je netmeter. Voor de
 service geldt: positief = afname, negatief = teruglevering. Pas rendementen en
 de zonne-overschotdrempel aan op je eigen installatie.
+
+
+## Gedetailleerde v2.3-functionaliteit
+
+### EV-laadplanner
+
+`find_best_charging_window` berekent op basis van gewenste energie, maximaal laadvermogen en deadline een geschikt laadvenster. De planner kan aaneengesloten laden afdwingen, korte sessies vermijden en rekening houden met de effectieve uur- of kwartierresolutie.
+
+### Boilerplanner
+
+`find_best_heating_window` zoekt een goedkoop aaneengesloten verwarmingsvenster voor de opgegeven duur en deadline. Dit is bedoeld als planningsadvies; EnerPrice schakelt de boiler of warmtepompboiler niet zelf.
+
+### Batterijstrategie
+
+`find_battery_strategy` gebruikt batterijcapaciteit, actuele en minimale/maximale SOC, laad- en ontlaadvermogen en roundtrip-rendement om laad- en ontlaadmomenten te adviseren. Netladen en terugleveren zijn afzonderlijk instelbaar.
+
+### Terugleveradvies
+
+`find_best_export_window` zoekt een gunstig moment om energie terug te leveren. Het advies kan rekening houden met de leveranciersspecifieke verkoopvergoeding en blijft gescheiden van advies over eigen verbruik.
+
+### Apparatenplanner
+
+`find_best_appliance_window` plant flexibele verbruikers zoals wasmachine, droger, vaatwasser of pomp binnen een opgegeven tijdvenster. Een energieverbruik in kWh kan optioneel worden meegegeven.
+
+### Voorbeeldautomatiseringen
+
+De planners en adviseurs leveren informatie; Home Assistant voert de daadwerkelijke acties uit. Gebruik de response van een service in een automation en controleer altijd de doel-entiteit, deadline en veiligheidsvoorwaarden voordat je automatisch schakelen activeert.
+
+## Opties
+
+EnerPrice ondersteunt naast provider- en leverancierinstellingen onder andere instellingen voor prijsresolutie, energiebelasting, btw, leveranciersprofiel, beste-periode-duur en flexibiliteit, piekperiode-duur en flexibiliteit en trenddrempels. Opties die alleen analyse beïnvloeden kunnen tijdens runtime worden toegepast; providerwijzigingen kunnen een reload vereisen.
+
+## Runtime-instellingen
+
+Runtime-instellingen voor analyse en periodeberekeningen zijn via de apparaatpagina aanpasbaar zonder Home Assistant volledig te herstarten. Hiermee kunnen onder andere duur, flexibiliteit, minimale tussenruimte en trenddrempels worden afgestemd op de installatie.
+
+## Services
+
+Naast de Smart Energy Advisor zijn de belangrijkste response-services:
+
+- `nl_day_ahead_prices.export_chart_data` — prijsdata exporteren voor grafieken;
+- `nl_day_ahead_prices.generate_apexcharts_config` — voorbeeld-YAML voor ApexCharts;
+- `find_best_charging_window` — EV-laadvenster;
+- `find_best_heating_window` — verwarmingsvenster;
+- `find_battery_strategy` — batterijstrategie;
+- `find_best_export_window` — teruglevervenster;
+- `find_best_appliance_window` — flexibel apparaat plannen;
+- `generate_dashboard_yaml` — Lovelace-dashboard genereren;
+- `generate_automation_yaml` — voorbeeldautomation genereren;
+- `get_smart_energy_advice` — stroom/zon/net/gas-contextadvies.
+
+Wanneer meerdere EnerPrice-configuraties geladen zijn, kan de Smart Energy Advisor via `config_entry_id` expliciet aan de gewenste configuratie worden gekoppeld.
+
+## Attributen
+
+Prijsentiteiten bieden onder andere `prices`, `prices_today`, `prices_tomorrow`, `all_in_prices`, `all_in_prices_today`, `all_in_prices_tomorrow`, de overeenkomstige `raw_*` attributen, prijsresolutie, provider, fallbackstatus, cache-informatie, datacompleetheid, huidig/volgend interval, markt- en all-in prijs, beoordeling, trend, volatiliteit, dagstatistieken en leverancierstariefmetadata.
+
+Prijsitems gebruiken steeds het formaat `{time, price}`, waarbij de prijs in EUR/kWh staat. Grote prijsarrays zijn bedoeld voor dashboards en analyse en worden waar passend buiten Recorder gehouden.
+
+## ApexCharts-voorbeeld
+
+Voor een all-in grafiek in ct/kWh kan `all_in_prices` rechtstreeks worden omgerekend:
+
+```yaml
+unit: ct/kWh
+data_generator: |
+  const prices = entity.attributes.all_in_prices ?? [];
+  return prices.map(p => [
+    new Date(p.time).getTime(),
+    parseFloat((p.price * 100).toFixed(2))
+  ]);
+```
+
+Dezelfde structuur werkt voor uur- en kwartierprijzen; gebruik `prices_today` voor marktprijzen van vandaag of `all_in_prices_today` voor all-in prijzen van vandaag.
+
+## Migratie vanaf hass-entso-e
+
+EnerPrice behoudt het belangrijke ApexCharts-formaat waarbij `entity.attributes.prices` een array van `{time, price}` blijft. Het domein verandert ten opzichte van hass-entso-e naar `nl_day_ahead_prices`, Home Assistant maakt nieuwe entity-ID's aan, prijzen worden genormaliseerd naar EUR/kWh en ENTSO-E is alleen een optionele fallback. Werk bestaande automations en dashboards bij naar de nieuwe EnerPrice entity-ID's.
 
 ## Privacy en werking
 
