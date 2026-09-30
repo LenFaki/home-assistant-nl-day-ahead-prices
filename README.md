@@ -1,8 +1,10 @@
 <p align="center">
-  <img src="brand/enerprice-header.png" alt="EnerPrice - Dynamic Energy Prices for Home Assistant" width="100%">
+  <img src="brand/enerprice-header-en.png" alt="EnerPrice - Dynamic Energy Prices for Home Assistant" width="100%">
 </p>
 
 # EnerPrice
+
+**Language:** English | [Nederlands](README.nl.md)
 
 [![GitHub Release](https://img.shields.io/github/v/release/LenFaki/home-assistant-nl-day-ahead-prices?style=flat-square)](https://github.com/LenFaki/home-assistant-nl-day-ahead-prices/releases)
 [![Status](https://img.shields.io/badge/status-stable-green.svg?style=flat-square)](https://github.com/LenFaki/home-assistant-nl-day-ahead-prices)
@@ -37,6 +39,50 @@ It is inspired by the sensor and ApexCharts attribute shape of `hass-entso-e`, b
 4. Last known valid prices cache
 
 The default bidding zone is `NL`, currency is `EUR`, and all sensor prices are exposed as `EUR/kWh`. Provider prices in `EUR/MWh` are converted automatically.
+
+## EnerPrice v2.4 — Smart Energy Advisor
+
+V2.4 adds a vendor-neutral Smart Energy Advisor for flexible loads and domestic
+hot water. The new response service
+`nl_day_ahead_prices.get_smart_energy_advice` can combine EnerPrice all-in
+electricity prices with optional Home Assistant entities for solar production,
+grid power and the current gas price.
+
+For heat-source decisions, EnerPrice compares **useful heat cost**, not unlike
+units directly. Grid-electric heat is calculated from EUR/kWh electricity and
+the configured electric efficiency. Gas heat is calculated from EUR/m³, gas
+energy content and the configured gas-appliance efficiency. The default gas
+energy-content assumption is configurable and should be adjusted when a more
+appropriate local or contract value is known.
+
+The advisor can return `solar_surplus`, `cheap_grid`, `gas`, `wait` or
+`normal`. It also looks ahead at the available day-ahead electricity prices,
+so a flexible hot-water load can be advised to wait when a materially cheaper
+electric interval is approaching. Direct numeric values can be supplied instead
+of Home Assistant entities for testing and automations.
+
+EnerPrice remains advisory: it does **not** switch a boiler, heat source or
+other appliance directly. Home Assistant automations can use the response to
+control a Solyx Nemo or any other compatible flexible load once that device is
+available in Home Assistant.
+
+Example:
+
+```yaml
+action: nl_day_ahead_prices.get_smart_energy_advice
+data:
+  gas_price_entity: sensor.your_current_gas_price
+  solar_power_entity: sensor.your_solar_power
+  grid_power_entity: sensor.your_grid_power
+  gas_efficiency: 0.90
+  electric_efficiency: 1.0
+  language: en
+response_variable: energy_advice
+```
+
+If more than one EnerPrice config entry is loaded, pass `config_entry_id` to select the configuration whose all-in prices should be used.
+
+A complete Dutch README is available in [README.nl.md](README.nl.md).
 
 ## EnerPrice v2.3
 
@@ -321,8 +367,9 @@ attributes warn about freshness without disabling prices. Custom supplier
 settings take precedence and report `custom`. Tibber's new standard monthly
 fee may not apply to older contracts; enter your own contract values when needed.
 
-No tariff downloads occur at runtime. A future version may update verified
-profiles remotely without an EnerPrice release. See the
+In Automatic mode, EnerPrice can retrieve the centrally maintained validated
+tariff registry at runtime, at most once per 24 hours. Bundled-only mode never
+uses the remote registry. See the
 [registry architecture and source review](docs/supplier-tariff-registry.md)
 for schema, VAT semantics, source limitations and future fallback order.
 

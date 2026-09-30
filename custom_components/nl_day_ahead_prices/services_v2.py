@@ -14,9 +14,10 @@ from homeassistant.util import dt as dt_util
 from .calculations import all_in_entries_for_supplier, calculate_supplier_export_fee
 from .const import DOMAIN
 from .dashboard import generate_automation_yaml, generate_dashboard_yaml
-from .models import PriceEntry
+from .models import PriceEntry, current_price
 from .planning import plan_appliance, plan_battery, plan_ev_charging, plan_export, plan_heating
 from .sensor import _energy_tax, _selected_supplier_profile, _vat
+from .smart_energy import build_smart_energy_advice
 
 SERVICE_SCHEMAS = {
     "find_best_charging_window": vol.Schema(
@@ -77,6 +78,22 @@ SERVICE_SCHEMAS = {
             vol.Optional("avoid_peak_periods", default=True): cv.boolean,
         }
     ),
+    "get_smart_energy_advice": vol.Schema(
+        {
+            vol.Optional("config_entry_id"): cv.string,
+            vol.Optional("gas_price_entity"): cv.entity_id,
+            vol.Optional("solar_power_entity"): cv.entity_id,
+            vol.Optional("grid_power_entity"): cv.entity_id,
+            vol.Optional("gas_price_per_m3"): vol.All(vol.Coerce(float), vol.Range(min=0)),
+            vol.Optional("solar_power_w"): vol.Coerce(float),
+            vol.Optional("grid_power_w"): vol.Coerce(float),
+            vol.Optional("electric_efficiency", default=1.0): vol.All(vol.Coerce(float), vol.Range(min=0.01)),
+            vol.Optional("gas_efficiency", default=0.90): vol.All(vol.Coerce(float), vol.Range(min=0.01, max=1)),
+            vol.Optional("gas_kwh_per_m3", default=9.769): vol.All(vol.Coerce(float), vol.Range(min=0.01)),
+            vol.Optional("solar_surplus_threshold_w", default=500): vol.All(vol.Coerce(float), vol.Range(min=0)),
+            vol.Optional("language", default="en"): vol.In(["en", "nl"]),
+        }
+    ),
     "generate_dashboard_yaml": vol.Schema(
         {
             vol.Optional("dashboard_type", default="full"): vol.In(["compact", "full", "energy_advisor"]),
@@ -123,9 +140,37 @@ def async_register_v2_services(hass: HomeAssistant) -> None:
             return {"yaml": generate_dashboard_yaml(**data, entity_ids=entity_ids)}
         if name == "generate_automation_yaml":
             return {"yaml": generate_automation_yaml(**data)}
-        coordinator = _coordinator(hass)
+        coordinator = _coordinator(hass, data.pop("config_entry_id", None))
         if coordinator is None or coordinator.data is None:
             return {"error": "Price data is not available"}
+        if name == "get_smart_energy_advice":
+            prices = _prices(coordinator, "all_in", True)
+            now = dt_util.now()
+            gas_price = data.pop("gas_price_per_m3", None)
+            solar_power = data.pop("solar_power_w", None)
+            grid_power = data.pop("grid_power_w", None)
+            if gas_price is None:
+                gas_price = _state_float(hass, data.pop("gas_price_entity", None))
+            else:
+                data.pop("gas_price_entity", None)
+            if solar_power is None:
+                solar_power = _state_float(hass, data.pop("solar_power_entity", None))
+            else:
+                data.pop("solar_power_entity", None)
+            if grid_power is None:
+                grid_power = _state_float(hass, data.pop("grid_power_entity", None))
+            else:
+                data.pop("grid_power_entity", None)
+            result = build_smart_energy_advice(
+                electricity_price=current_price(prices, now),
+                future_prices=prices,
+                now=now,
+                gas_price_per_m3=gas_price,
+                solar_power_w=solar_power,
+                grid_power_w=grid_power,
+                **data,
+            )
+            return _serialize(result)
         prices = _prices(coordinator, data.pop("price_type", "all_in"), data.get("include_supplier_sell_fee", True))
         now = dt_util.now()
         data.setdefault("earliest_start", now)
@@ -161,8 +206,13 @@ def async_unregister_v2_services(hass: HomeAssistant) -> None:
         hass.services.async_remove(DOMAIN, service)
 
 
-def _coordinator(hass: HomeAssistant):
-    return next(iter(hass.data.get(DOMAIN, {}).values()), None)
+def _coordinator(hass: HomeAssistant, config_entry_id: str | None = None):
+    entries = hass.data.get(DOMAIN, {})
+    if config_entry_id:
+        return entries.get(config_entry_id)
+    if len(entries) == 1:
+        return next(iter(entries.values()))
+    return None
 
 
 def _dashboard_entity_ids(hass: HomeAssistant, config_entry_id: str) -> dict[str, str]:
@@ -207,3 +257,16 @@ def _serialize(value: Any) -> Any:
     if isinstance(value, list):
         return [_serialize(item) for item in value]
     return value
+
+
+def _state_float(hass: HomeAssistant, entity_id: str | None) -> float | None:
+    """Read a numeric Home Assistant state without coupling to a vendor integration."""
+    if not entity_id:
+        return None
+    state = hass.states.get(entity_id)
+    if state is None or state.state in {"unknown", "unavailable", "none", ""}:
+        return None
+    try:
+        return float(state.state)
+    except (TypeError, ValueError):
+        return None
