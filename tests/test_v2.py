@@ -131,6 +131,47 @@ def test_advisor_summary_recommends_using_good_price_now() -> None:
     assert result["next_better_time"] is None
     assert "Goed moment" in result["summary"]
 
+
+def test_advisor_handles_negative_prices_without_percentage_math() -> None:
+    now = datetime(2026, 7, 9, 10, 0, tzinfo=timezone.utc)
+    prices = _prices([-0.02, -0.03, -0.04], minutes=15, start=now)
+    result = build_price_advice(
+        current_price=-0.02,
+        all_in_price=-0.02,
+        score={"score": 95},
+        rating="very_cheap",
+        trend="falling",
+        volatility="moderate",
+        language="nl",
+        prices=prices,
+        now=now,
+    )
+    assert result["state"] == "excellent"
+    assert result["next_better_time"] == prices[1].time
+    assert result["next_better_price"] == pytest.approx(-0.03)
+    assert result["minutes_until_better"] == 15
+    assert result["savings_percent"] is None
+    assert "Goed moment" in result["summary"]
+
+
+def test_advisor_uses_quarter_hour_wait_time() -> None:
+    now = datetime(2026, 7, 9, 10, 7, tzinfo=timezone.utc)
+    prices = _prices([0.30, 0.20, 0.19], minutes=15, start=datetime(2026, 7, 9, 10, 0, tzinfo=timezone.utc))
+    result = build_price_advice(
+        current_price=0.30,
+        all_in_price=0.30,
+        score={"score": 30},
+        rating="expensive",
+        trend="falling",
+        volatility="low",
+        language="nl",
+        prices=prices,
+        now=now,
+    )
+    assert result["next_better_time"] == prices[1].time
+    assert result["minutes_until_better"] == 8
+    assert result["savings_percent"] == pytest.approx(33.3)
+
 def test_ev_planner_consecutive_hourly() -> None:
     prices = _prices([0.4, 0.1, 0.2, 0.5])
     result = plan_ev_charging(
