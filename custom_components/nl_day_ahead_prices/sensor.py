@@ -368,6 +368,8 @@ def _v2_data(
             trend=trend["trend"],
             volatility=stats["level"],
             language=language,
+            prices=all_in,
+            now=now,
         )
         return {"state": advice["state"], **advice}
     if key in {"today_score", "tomorrow_score"}:
