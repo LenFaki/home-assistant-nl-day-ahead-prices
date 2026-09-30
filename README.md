@@ -80,6 +80,8 @@ data:
 response_variable: energy_advice
 ```
 
+If more than one EnerPrice config entry is loaded, pass `config_entry_id` to select the configuration whose all-in prices should be used.
+
 A complete Dutch README is available in [README.nl.md](README.nl.md).
 
 ## EnerPrice v2.3
