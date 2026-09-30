@@ -15,9 +15,9 @@ from .calculations import all_in_entries_for_supplier, calculate_supplier_export
 from .const import DOMAIN
 from .dashboard import generate_automation_yaml, generate_dashboard_yaml
 from .models import PriceEntry, current_price
-from .smart_energy import build_smart_energy_advice
 from .planning import plan_appliance, plan_battery, plan_ev_charging, plan_export, plan_heating
 from .sensor import _energy_tax, _selected_supplier_profile, _vat
+from .smart_energy import build_smart_energy_advice
 
 SERVICE_SCHEMAS = {
     "find_best_charging_window": vol.Schema(
