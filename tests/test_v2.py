@@ -266,6 +266,21 @@ def test_dashboard_yaml_generation() -> None:
     assert "sensor.nl_day_ahead_price_advisor" in generated
 
 
+
+def test_dashboard_yaml_accepts_resolved_entity_ids() -> None:
+    generated = generate_dashboard_yaml(
+        "compact",
+        entity_ids={
+            "price_advisor": "sensor.meterkast_price_advisor",
+            "price_score": "sensor.meterkast_price_score",
+            "current_all_in_price": "sensor.meterkast_current_all_in_price",
+        },
+    )
+    assert "sensor.meterkast_price_advisor" in generated
+    assert "sensor.meterkast_price_score" in generated
+    assert "sensor.meterkast_current_all_in_price" in generated
+    assert "states('sensor.meterkast_price_advisor')" in generated
+
 def test_compact_dashboard_uses_native_advisor_blocks_without_chart() -> None:
     generated = generate_dashboard_yaml("compact")
     assert "type: tile" in generated
