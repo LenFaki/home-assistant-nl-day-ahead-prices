@@ -8,6 +8,7 @@ from typing import Any
 import voluptuous as vol
 from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 
 from .calculations import all_in_entries_for_supplier, calculate_supplier_export_fee
@@ -117,7 +118,9 @@ def async_register_v2_services(hass: HomeAssistant) -> None:
         data = dict(call.data)
         name = call.service
         if name == "generate_dashboard_yaml":
-            return {"yaml": generate_dashboard_yaml(**data)}
+            coordinator = _coordinator(hass)
+            entity_ids = _dashboard_entity_ids(hass, coordinator.entry.entry_id) if coordinator else None
+            return {"yaml": generate_dashboard_yaml(**data, entity_ids=entity_ids)}
         if name == "generate_automation_yaml":
             return {"yaml": generate_automation_yaml(**data)}
         coordinator = _coordinator(hass)
@@ -160,6 +163,29 @@ def async_unregister_v2_services(hass: HomeAssistant) -> None:
 
 def _coordinator(hass: HomeAssistant):
     return next(iter(hass.data.get(DOMAIN, {}).values()), None)
+
+
+def _dashboard_entity_ids(hass: HomeAssistant, config_entry_id: str) -> dict[str, str]:
+    """Resolve actual entity IDs for one EnerPrice config entry."""
+    registry = er.async_get(hass)
+    by_unique_suffix: dict[str, str] = {}
+    for entity in er.async_entries_for_config_entry(registry, config_entry_id):
+        if entity.platform != DOMAIN:
+            continue
+        for key in (
+            "price_advisor",
+            "price_score",
+            "current_all_in_price",
+            "current_market_price",
+            "tomorrow_prices_available",
+            "best_price_period",
+            "next_best_price_period_start",
+            "selected_supplier",
+            "current_provider",
+        ):
+            if entity.unique_id.endswith(f"_{key}"):
+                by_unique_suffix[key] = entity.entity_id
+    return by_unique_suffix
 
 
 def _prices(coordinator, price_type: str, include_sell_fee: bool) -> list[PriceEntry]:
