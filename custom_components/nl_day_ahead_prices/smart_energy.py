@@ -29,10 +29,15 @@ def build_smart_energy_advice(
     is_nl = language.lower().startswith("nl")
     solar = solar_power_w if solar_power_w is not None else 0.0
     grid = grid_power_w if grid_power_w is not None else 0.0
-    # Positive grid power means import. Export therefore indicates measured surplus.
-    measured_surplus = max(0.0, -grid) if grid_power_w is not None else 0.0
-    solar_surplus = solar >= solar_surplus_threshold_w and (
-        grid_power_w is None or measured_surplus >= solar_surplus_threshold_w
+    solar_production = solar > 0
+    # Positive grid power means import. When grid data is available, actual export is
+    # the most reliable definition of surplus. Solar production alone is used only
+    # when no grid meter was supplied.
+    measured_surplus = max(0.0, -grid) if grid_power_w is not None else None
+    solar_surplus = (
+        measured_surplus >= solar_surplus_threshold_w
+        if measured_surplus is not None
+        else solar >= solar_surplus_threshold_w
     )
 
     electric_heat_cost = (
@@ -110,6 +115,8 @@ def build_smart_energy_advice(
         "cost_difference_percent": round(savings, 1) if savings is not None else None,
         "solar_power_w": solar_power_w,
         "grid_power_w": grid_power_w,
+        "solar_production": solar_production,
+        "measured_solar_surplus_w": _round(measured_surplus),
         "solar_surplus": solar_surplus,
         "solar_surplus_threshold_w": solar_surplus_threshold_w,
         "electric_efficiency": electric_efficiency,
