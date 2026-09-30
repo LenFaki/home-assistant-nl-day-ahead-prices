@@ -38,14 +38,16 @@ It is inspired by the sensor and ApexCharts attribute shape of `hass-entso-e`, b
 
 The default bidding zone is `NL`, currency is `EUR`, and all sensor prices are exposed as `EUR/kWh`. Provider prices in `EUR/MWh` are converted automatically.
 
-## EnerPrice v2.0
+## EnerPrice v2.3
 
 ### Price Advisor
 
 `sensor.nl_day_ahead_price_advisor` combines current all-in price, price score,
 rating, trend, and volatility into `excellent`, `good`, `neutral`, `avoid`, or
-`critical` advice. Its attributes provide a title, explanation, recommendation,
-best actions, avoided actions, and the signals behind the advice.
+`critical` advice. It also looks ahead for a materially cheaper interval and
+exposes the next better time and price, minutes to wait, percentage savings for
+positive prices, the best upcoming price, and a concise dashboard summary.
+Negative prices and quarter-hour intervals are handled explicitly.
 
 ### Price Score
 
@@ -98,11 +100,13 @@ automation example.
 
 ### Dashboard Generator
 
-`nl_day_ahead_prices.generate_dashboard_yaml` creates compact, full, or
-energy-advisor Lovelace YAML with prices, advice, score, ApexCharts, periods,
-supplier, resolution, provider, and tomorrow availability. Copy the returned
-YAML manually into a dashboard. ApexCharts Card must already be installed for
-the graph.
+`nl_day_ahead_prices.generate_dashboard_yaml` creates CasaRegie-inspired
+compact, full, or energy-advisor Lovelace YAML with native Home Assistant
+Sections, headings, tiles and Advisor Markdown. Richer layouts can include
+ApexCharts. When called from Home Assistant, the generator resolves the actual
+EnerPrice entity IDs from the Entity Registry, including renamed or prefixed
+entities. Copy the returned YAML manually into a dashboard. ApexCharts Card
+must already be installed when using a layout with the graph.
 
 ### Automation Generator
 
