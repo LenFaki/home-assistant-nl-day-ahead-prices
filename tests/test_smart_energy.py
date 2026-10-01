@@ -219,3 +219,42 @@ def test_exact_five_percent_future_threshold_can_trigger_wait_with_gas():
     )
     assert result["state"] == "wait"
     assert result["next_better_price"] == 0.19
+
+
+def test_missing_grid_uses_solar_production_as_explicit_fallback():
+    result = build_smart_energy_advice(
+        electricity_price=0.25,
+        solar_power_w=900,
+        flexible_load_power_w=1500,
+        now=NOW,
+    )
+    assert result["surplus_source"] == "solar_production_fallback"
+    assert result["measured_solar_surplus_w"] is None
+    assert result["partial_surplus"] is True
+    assert result["surplus_coverage_percent"] == 60.0
+
+
+def test_missing_grid_and_solar_keep_surplus_unknown():
+    result = build_smart_energy_advice(
+        electricity_price=0.25,
+        flexible_load_power_w=1500,
+        now=NOW,
+    )
+    assert result["surplus_source"] == "unknown"
+    assert result["measured_solar_surplus_w"] is None
+    assert result["solar_surplus"] is False
+    assert result["partial_surplus"] is False
+    assert result["surplus_coverage_percent"] is None
+    assert result["effective_electric_heat_cost_per_kwh"] == 0.25
+
+
+def test_effective_cost_is_labeled_as_purchased_energy_only():
+    result = build_smart_energy_advice(
+        electricity_price=0.30,
+        gas_price_per_m3=1.50,
+        grid_power_w=-1000,
+        flexible_load_power_w=1500,
+        now=NOW,
+    )
+    assert result["cost_model"] == "purchased_energy_only"
+    assert result["effective_electric_heat_cost_per_kwh"] == 0.10
