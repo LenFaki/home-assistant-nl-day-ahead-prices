@@ -279,6 +279,17 @@ get_smart_energy_advice:
           max: 20000
           step: 50
           unit_of_measurement: W
+    flexible_load_power_w:
+      name: Flexible load power
+      description: Optional electrical demand of the flexible load in watts. When set, measured surplus is compared with the actual load demand and partial surplus can be combined with grid electricity.
+      required: false
+      selector:
+        number:
+          min: 1
+          max: 50000
+          unit_of_measurement: W
+          mode: box
+
     language:
       name: Advice language
       description: Language for the returned recommendation.

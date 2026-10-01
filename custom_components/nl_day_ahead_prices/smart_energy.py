@@ -20,11 +20,14 @@ def build_smart_energy_advice(
     gas_efficiency: float = 0.90,
     gas_kwh_per_m3: float = DEFAULT_GAS_KWH_PER_M3,
     solar_surplus_threshold_w: float = 500.0,
+    flexible_load_power_w: float | None = None,
     language: str = "en",
 ) -> dict[str, Any]:
     """Compare solar, grid electricity, gas and waiting for flexible heat loads."""
     if electric_efficiency <= 0 or gas_efficiency <= 0 or gas_kwh_per_m3 <= 0:
         raise ValueError("Efficiencies and gas energy content must be positive")
+    if flexible_load_power_w is not None and flexible_load_power_w <= 0:
+        raise ValueError("Flexible load power must be positive")
 
     is_nl = language.lower().startswith("nl")
     solar = solar_power_w if solar_power_w is not None else 0.0
@@ -34,14 +37,28 @@ def build_smart_energy_advice(
     # the most reliable definition of surplus. Solar production alone is used only
     # when no grid meter was supplied.
     measured_surplus = max(0.0, -grid) if grid_power_w is not None else None
-    solar_surplus = (
-        measured_surplus >= solar_surplus_threshold_w
-        if measured_surplus is not None
-        else solar >= solar_surplus_threshold_w
+    available_surplus = measured_surplus if measured_surplus is not None else solar
+    required_surplus = flexible_load_power_w if flexible_load_power_w is not None else solar_surplus_threshold_w
+    solar_surplus = available_surplus >= required_surplus
+    partial_surplus = flexible_load_power_w is not None and 0 < available_surplus < flexible_load_power_w
+    surplus_coverage = (
+        min(100.0, available_surplus / flexible_load_power_w * 100)
+        if flexible_load_power_w is not None else None
     )
 
     electric_heat_cost = (
         electricity_price / electric_efficiency if electricity_price is not None else None
+    )
+    # When the flexible load demand is known, measured surplus can cover part of
+    # that demand. Only the remaining grid share is priced at the current all-in
+    # electricity tariff. This is intentionally advisory and assumes available
+    # surplus has no additional purchase cost.
+    grid_share = (
+        max(0.0, flexible_load_power_w - available_surplus) / flexible_load_power_w
+        if flexible_load_power_w is not None else 1.0
+    )
+    effective_electric_heat_cost = (
+        electric_heat_cost * grid_share if electric_heat_cost is not None else None
     )
     gas_heat_cost = (
         gas_price_per_m3 / (gas_kwh_per_m3 * gas_efficiency)
@@ -57,9 +74,9 @@ def build_smart_energy_advice(
             if is_nl else
             "Use available solar surplus for flexible electric heating."
         )
-    elif electric_heat_cost is not None and gas_heat_cost is not None:
-        if timing["future_electric_heat_cost"] is not None and timing["future_electric_heat_cost"] < min(
-            electric_heat_cost, gas_heat_cost
+    elif effective_electric_heat_cost is not None and gas_heat_cost is not None:
+        if not partial_surplus and timing["future_electric_heat_cost"] is not None and timing["future_electric_heat_cost"] <= min(
+            effective_electric_heat_cost, gas_heat_cost
         ) * 0.95:
             state = "wait"
             recommendation = (
@@ -67,13 +84,20 @@ def build_smart_energy_advice(
                 if is_nl else
                 f"Wait about {timing['minutes_until_better']} min if practical; electric heating is expected to be cheaper then."
             )
-        elif electric_heat_cost <= gas_heat_cost:
+        elif effective_electric_heat_cost <= gas_heat_cost:
             state = "cheap_grid"
-            recommendation = (
-                "Elektrisch verwarmen vanaf het net is nu goedkoper dan verwarmen met gas."
-                if is_nl else
-                "Grid-electric heating is currently cheaper than gas heating."
-            )
+            if partial_surplus:
+                recommendation = (
+                    f"Gebruik het gedeeltelijke energieoverschot ({surplus_coverage:.0f}%) en vul de rest aan met netstroom; dit is nu goedkoper dan gas."
+                    if is_nl else
+                    f"Use the partial energy surplus ({surplus_coverage:.0f}%) and supply the remainder from the grid; this is currently cheaper than gas."
+                )
+            else:
+                recommendation = (
+                    "Elektrisch verwarmen vanaf het net is nu goedkoper dan verwarmen met gas."
+                    if is_nl else
+                    "Grid-electric heating is currently cheaper than gas heating."
+                )
         else:
             state = "gas"
             recommendation = (
@@ -81,8 +105,8 @@ def build_smart_energy_advice(
                 if is_nl else
                 "Gas heating is currently cheaper than grid-electric heating."
             )
-    elif electric_heat_cost is not None:
-        state = "cheap_grid" if timing["next_better_price"] is None else "wait"
+    elif effective_electric_heat_cost is not None:
+        state = "cheap_grid" if partial_surplus or timing["next_better_price"] is None else "wait"
         recommendation = (
             "Elektriciteitsadvies beschikbaar; configureer een gasprijssensor voor een warmtebronvergelijking."
             if is_nl else
@@ -97,8 +121,8 @@ def build_smart_energy_advice(
         )
 
     savings = None
-    if electric_heat_cost is not None and gas_heat_cost is not None and max(electric_heat_cost, gas_heat_cost) > 0:
-        savings = abs(electric_heat_cost - gas_heat_cost) / max(electric_heat_cost, gas_heat_cost) * 100
+    if effective_electric_heat_cost is not None and gas_heat_cost is not None and max(effective_electric_heat_cost, gas_heat_cost) > 0:
+        savings = abs(effective_electric_heat_cost - gas_heat_cost) / max(effective_electric_heat_cost, gas_heat_cost) * 100
 
     return {
         "state": state,
@@ -106,10 +130,11 @@ def build_smart_energy_advice(
         "electricity_price": electricity_price,
         "gas_price_per_m3": gas_price_per_m3,
         "electric_heat_cost_per_kwh": _round(electric_heat_cost),
+        "effective_electric_heat_cost_per_kwh": _round(effective_electric_heat_cost),
         "gas_heat_cost_per_kwh": _round(gas_heat_cost),
         "cheapest_now": (
-            "electricity" if electric_heat_cost is not None and gas_heat_cost is not None and electric_heat_cost <= gas_heat_cost
-            else "gas" if electric_heat_cost is not None and gas_heat_cost is not None
+            "electricity" if effective_electric_heat_cost is not None and gas_heat_cost is not None and effective_electric_heat_cost <= gas_heat_cost
+            else "gas" if effective_electric_heat_cost is not None and gas_heat_cost is not None
             else None
         ),
         "cost_difference_percent": round(savings, 1) if savings is not None else None,
@@ -118,6 +143,10 @@ def build_smart_energy_advice(
         "solar_production": solar_production,
         "measured_solar_surplus_w": _round(measured_surplus),
         "solar_surplus": solar_surplus,
+        "partial_surplus": partial_surplus,
+        "surplus_coverage_percent": round(surplus_coverage, 1) if surplus_coverage is not None else None,
+        "required_surplus_w": required_surplus,
+        "flexible_load_power_w": flexible_load_power_w,
         "solar_surplus_threshold_w": solar_surplus_threshold_w,
         "electric_efficiency": electric_efficiency,
         "gas_efficiency": gas_efficiency,

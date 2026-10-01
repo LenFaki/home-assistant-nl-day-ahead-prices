@@ -15,6 +15,14 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 
+async def async_setup(hass: HomeAssistant, config: dict) -> bool:
+    """Set up integration-level EnerPrice services."""
+    from .services import async_register_services
+
+    async_register_services(hass)
+    return True
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up EnerPrice from a config entry."""
     from .coordinator import NLDayAheadPricesCoordinator
@@ -34,9 +42,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass, registry_manager, coordinator.registry_updated,
         enabled=supplier_update_mode({**entry.data, **entry.options}) == SUPPLIER_UPDATES_AUTOMATIC,
     ))
-    from .services import async_register_services
-
-    async_register_services(hass)
     hass.async_create_task(coordinator.async_refresh())
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
     _LOGGER.info("EnerPrice setup finished for config entry %s", entry.entry_id)
@@ -50,10 +55,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if unload_ok:
         await hass.data[DOMAIN][entry.entry_id].async_stop()
         hass.data[DOMAIN].pop(entry.entry_id)
-        if not hass.data[DOMAIN]:
-            from .services import async_unregister_services
-
-            async_unregister_services(hass)
+        # Integration-level services remain registered independently of config entries.
     return unload_ok
 
 
