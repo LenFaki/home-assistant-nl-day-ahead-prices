@@ -261,7 +261,14 @@ def _dashboard_entity_ids(hass: HomeAssistant, config_entry_id: str) -> dict[str
     registry = er.async_get(hass)
     by_unique_suffix: dict[str, str] = {}
     for entity in er.async_entries_for_config_entry(registry, config_entry_id):
-        if entity.platform != DOMAIN:
+        if entity.platform != DOMAIN or entity.disabled_by is not None:
+            continue
+        # A stale Entity Registry entry can survive after an entity is no longer
+        # provided by the integration. Only expose entities that currently have
+        # a state in Home Assistant so generated dashboards cannot contain
+        # "Entity not found" cards. Keep temporarily unavailable entities: they
+        # still have a State object and are valid dashboard targets.
+        if hass.states.get(entity.entity_id) is None:
             continue
         for key in (
             "price_advisor",
