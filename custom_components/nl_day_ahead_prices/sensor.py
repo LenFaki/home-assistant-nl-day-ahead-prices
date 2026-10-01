@@ -11,8 +11,9 @@ from typing import Any
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorEntityDescription, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory, UnitOfEnergy
-from homeassistant.core import HomeAssistant
+from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
@@ -34,6 +35,16 @@ from .const import (
     CONF_BEST_PERIOD_DURATION,
     CONF_BEST_PERIOD_FLEX,
     CONF_CHART_HELPERS,
+    CONF_ADVICE_LANGUAGE,
+    CONF_ELECTRIC_EFFICIENCY,
+    CONF_FLEXIBLE_LOAD_POWER_W,
+    CONF_GAS_EFFICIENCY,
+    CONF_GAS_KWH_PER_M3,
+    CONF_GAS_PRICE_ENTITY,
+    CONF_GRID_POWER_ENTITY,
+    CONF_SMART_SETUP_ENABLED,
+    CONF_SOLAR_POWER_ENTITY,
+    CONF_SOLAR_SURPLUS_THRESHOLD_W,
     CONF_CUSTOM_MONTHLY_FEE_ELECTRICITY,
     CONF_CUSTOM_PURCHASE_FEE_ELECTRICITY,
     CONF_CUSTOM_PURCHASE_FEE_INCLUDES_VAT,
@@ -52,6 +63,11 @@ from .const import (
     CONF_SUPPLIER_MARKUP_EXCL_VAT,
     CONF_VAT,
     DEFAULT_CUSTOM_MONTHLY_FEE_ELECTRICITY,
+    DEFAULT_ADVICE_LANGUAGE,
+    DEFAULT_ELECTRIC_EFFICIENCY,
+    DEFAULT_GAS_EFFICIENCY,
+    DEFAULT_GAS_KWH_PER_M3,
+    DEFAULT_SOLAR_SURPLUS_THRESHOLD_W,
     DEFAULT_CUSTOM_PURCHASE_FEE_INCLUDES_VAT,
     DEFAULT_CUSTOM_SELL_FEE_ELECTRICITY,
     DEFAULT_CUSTOM_SELL_FEE_INCLUDES_VAT,
@@ -79,6 +95,7 @@ from .price_resolution import (
 )
 from .registry_status import registry_status, tariff_status
 from .scoring import calculate_day_score, calculate_opportunity, calculate_price_score
+from .smart_energy import build_smart_energy_advice
 from .supplier_profiles import SupplierProfile, supplier_profile_to_dict
 from .supplier_registry import get_supplier_tariff, supplier_update_mode, tariff_metadata
 
@@ -701,8 +718,96 @@ async def async_setup_entry(
     coordinator: NLDayAheadPricesCoordinator = hass.data[DOMAIN][entry.entry_id]
     entities = [NLDayAheadPriceSensor(coordinator, entry, description) for description in SENSORS]
     entities.extend(NLRegistryDiagnosticSensor(coordinator, entry, description) for description in REGISTRY_SENSORS)
+    if _entry_options(entry).get(CONF_SMART_SETUP_ENABLED, False):
+        entities.append(NLSmartEnergyAdvisorSensor(coordinator, entry))
     _LOGGER.info("Adding %s EnerPrice sensor entities", len(entities))
     async_add_entities(entities)
+
+
+class NLSmartEnergyAdvisorSensor(CoordinatorEntity[NLDayAheadPricesCoordinator], SensorEntity):
+    """Live Smart Energy Advisor using price and configured Home Assistant inputs."""
+
+    _attr_has_entity_name = True
+    _attr_name = "Smart Energy Advisor"
+    _attr_icon = "mdi:home-lightning-bolt"
+
+    def __init__(self, coordinator: NLDayAheadPricesCoordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator)
+        self.entry = entry
+        self._attr_unique_id = f"{entry.entry_id}_smart_energy_advisor"
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, entry.entry_id)},
+            "name": "EnerPrice",
+            "manufacturer": "EnerPrice",
+        }
+        self._result: dict[str, Any] = {}
+
+    @property
+    def suggested_object_id(self) -> str:
+        return "nl_day_ahead_smart_energy_advisor"
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        options = _entry_options(self.entry)
+        watched = [
+            options.get(CONF_GRID_POWER_ENTITY),
+            options.get(CONF_SOLAR_POWER_ENTITY),
+            options.get(CONF_GAS_PRICE_ENTITY),
+        ]
+        entity_ids = [entity_id for entity_id in watched if entity_id]
+        if entity_ids:
+            self.async_on_remove(async_track_state_change_event(self.hass, entity_ids, self._async_input_changed))
+
+    @callback
+    def _async_input_changed(self, event: Event) -> None:
+        self.async_write_ha_state()
+
+    def _advice(self) -> dict[str, Any]:
+        data = self.coordinator.data
+        if data is None:
+            return {"state": "normal", "recommendation": "Price data is not available."}
+        options = _entry_options(self.entry)
+        all_in = _cached_all_in_entries(self.coordinator, data, self.entry)
+        now = dt_util.now()
+        language = str(options.get(CONF_ADVICE_LANGUAGE, DEFAULT_ADVICE_LANGUAGE))
+        if language == "auto":
+            language = self.hass.config.language
+        return build_smart_energy_advice(
+            electricity_price=current_price(all_in, now),
+            future_prices=all_in,
+            now=now,
+            gas_price_per_m3=_state_float_sensor(self.hass, options.get(CONF_GAS_PRICE_ENTITY)),
+            solar_power_w=_state_float_sensor(self.hass, options.get(CONF_SOLAR_POWER_ENTITY)),
+            grid_power_w=_state_float_sensor(self.hass, options.get(CONF_GRID_POWER_ENTITY)),
+            flexible_load_power_w=options.get(CONF_FLEXIBLE_LOAD_POWER_W),
+            electric_efficiency=float(options.get(CONF_ELECTRIC_EFFICIENCY, DEFAULT_ELECTRIC_EFFICIENCY)),
+            gas_efficiency=float(options.get(CONF_GAS_EFFICIENCY, DEFAULT_GAS_EFFICIENCY)),
+            gas_kwh_per_m3=float(options.get(CONF_GAS_KWH_PER_M3, DEFAULT_GAS_KWH_PER_M3)),
+            solar_surplus_threshold_w=float(options.get(CONF_SOLAR_SURPLUS_THRESHOLD_W, DEFAULT_SOLAR_SURPLUS_THRESHOLD_W)),
+            language=language,
+        )
+
+    @property
+    def native_value(self) -> str:
+        self._result = self._advice()
+        return str(self._result["state"])
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        self._result = self._advice()
+        return {key: (value.isoformat() if isinstance(value, datetime) else value) for key, value in self._result.items() if key != "state"}
+
+
+def _state_float_sensor(hass: HomeAssistant, entity_id: str | None) -> float | None:
+    if not entity_id:
+        return None
+    state = hass.states.get(entity_id)
+    if state is None or state.state in {"unknown", "unavailable", "none", ""}:
+        return None
+    try:
+        return float(state.state)
+    except (TypeError, ValueError):
+        return None
 
 
 class NLDayAheadPriceSensor(CoordinatorEntity[NLDayAheadPricesCoordinator], SensorEntity):
