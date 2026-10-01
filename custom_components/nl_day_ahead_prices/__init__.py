@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
+from homeassistant.helpers import config_validation as cv
 
 from .const import (
     CONF_GAS_PRICE_ENTITY,
@@ -23,8 +24,6 @@ if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
 
 _LOGGER = logging.getLogger(__name__)
-
-from homeassistant.helpers import config_validation as cv
 
 CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
 
