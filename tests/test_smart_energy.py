@@ -1,5 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
+import pytest
+
 from custom_components.nl_day_ahead_prices.models import PriceEntry
 from custom_components.nl_day_ahead_prices.smart_energy import build_smart_energy_advice
 
@@ -129,3 +131,79 @@ def test_zero_gas_price_is_supported():
     assert result["gas_heat_cost_per_kwh"] == 0.0
     assert result["cheapest_now"] == "gas"
     assert result["state"] == "gas"
+
+
+def test_known_load_requires_full_surplus_before_solar_surplus_state():
+    result = build_smart_energy_advice(
+        electricity_price=0.30,
+        gas_price_per_m3=1.50,
+        grid_power_w=-500,
+        flexible_load_power_w=1500,
+        now=NOW,
+    )
+    assert result["solar_surplus"] is False
+    assert result["partial_surplus"] is True
+    assert result["surplus_coverage_percent"] == 33.3
+    assert result["required_surplus_w"] == 1500
+
+
+def test_full_surplus_uses_actual_flexible_load_power():
+    result = build_smart_energy_advice(
+        electricity_price=0.30,
+        gas_price_per_m3=1.50,
+        grid_power_w=-1500,
+        flexible_load_power_w=1500,
+        now=NOW,
+    )
+    assert result["state"] == "solar_surplus"
+    assert result["solar_surplus"] is True
+    assert result["surplus_coverage_percent"] == 100.0
+
+
+def test_partial_surplus_can_make_electric_heat_cheaper_than_gas():
+    result = build_smart_energy_advice(
+        electricity_price=0.30,
+        gas_price_per_m3=1.50,
+        grid_power_w=-1000,
+        flexible_load_power_w=1500,
+        now=NOW,
+    )
+    assert result["partial_surplus"] is True
+    assert result["effective_electric_heat_cost_per_kwh"] == 0.10
+    assert result["state"] == "cheap_grid"
+    assert result["cheapest_now"] == "electricity"
+
+
+def test_partial_surplus_can_still_leave_gas_cheaper():
+    result = build_smart_energy_advice(
+        electricity_price=0.42,
+        gas_price_per_m3=1.50,
+        grid_power_w=-500,
+        flexible_load_power_w=1500,
+        now=NOW,
+    )
+    assert result["effective_electric_heat_cost_per_kwh"] == 0.28
+    assert result["state"] == "gas"
+    assert result["cheapest_now"] == "gas"
+
+
+def test_load_power_is_optional_and_preserves_legacy_threshold():
+    result = build_smart_energy_advice(
+        electricity_price=0.30,
+        gas_price_per_m3=1.50,
+        grid_power_w=-500,
+        solar_surplus_threshold_w=500,
+        now=NOW,
+    )
+    assert result["state"] == "solar_surplus"
+    assert result["flexible_load_power_w"] is None
+    assert result["required_surplus_w"] == 500
+
+
+def test_flexible_load_power_must_be_positive():
+    with pytest.raises(ValueError, match="Flexible load power"):
+        build_smart_energy_advice(
+            electricity_price=0.30,
+            flexible_load_power_w=0,
+            now=NOW,
+        )
