@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.5.4 - 2026-10-01
+
+### Fixed
+- Fix the v2.5.3 Home Assistant startup regression caused by an invalid `CONFIG_SCHEMA` declaration.
+- Restore normal EnerPrice config-entry setup so price entities and generated dashboards receive price data again.
+
+### Compatibility
+- No pricing logic, entity IDs, services, supplier tariffs or Smart Energy configuration are intentionally changed from v2.5.3.
+- Existing EnerPrice configuration is preserved; no reconfiguration is required.
+
 ## 2.5.3 - 2026-10-01
 
 ### Improved
