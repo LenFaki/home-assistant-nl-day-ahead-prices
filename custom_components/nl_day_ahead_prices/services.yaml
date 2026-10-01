@@ -139,6 +139,10 @@ find_best_appliance_window:
       selector: {boolean: {}}
 generate_dashboard_yaml:
   fields:
+    config_entry_id:
+      name: EnerPrice config entry ID
+      description: Optional when one EnerPrice configuration is loaded; select the entry when multiple configurations exist.
+      selector: {text: {}}
     dashboard_type:
       default: full
       selector: {select: {options: [compact, full, energy_advisor]}}
