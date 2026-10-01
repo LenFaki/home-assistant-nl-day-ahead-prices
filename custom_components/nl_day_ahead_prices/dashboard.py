@@ -111,7 +111,7 @@ def generate_dashboard_yaml(
               {{% set available = measured if measured is not none else fallback %}}
               {{% set coverage = ([100, available / load * 100] | min) if available is not none and load else none %}}
               {{% set electric_cost = price / electric_eff if price is not none and electric_eff > 0 else none %}}
-              {{% set grid_share = ([0, load - available] | max / load) if load and available is not none else 1 %}}
+              {{% set grid_share = (([0, load - available] | max) / load) if load and available is not none else 1 %}}
               {{% set effective_cost = electric_cost * grid_share if electric_cost is not none else none %}}
               {{% set gas_cost = gas / (gas_kwh * gas_eff) if gas is not none and gas_kwh > 0 and gas_eff > 0 else none %}}
               {{% set better_time = state_attr('{ids["price_advisor"]}', 'next_better_time') %}}
