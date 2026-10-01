@@ -60,19 +60,32 @@
       },
       "smart_setup": {
         "title": "Smart Energy setup",
-        "description": "Optional: select Home Assistant measurements and one flexible load for automatic Smart Energy advice. EnerPrice remains advisory and does not switch devices. Positive grid power means import; negative means export.",
+        "description": "Optional: select Home Assistant measurements and one flexible device for automatic Smart Energy advice. EnerPrice remains advisory and does not switch devices.",
         "data": {
           "smart_setup_enabled": "Enable Smart Energy Setup",
           "smart_grid_power_entity": "Grid / P1 power sensor",
           "smart_solar_power_entity": "Actual solar production",
           "smart_gas_price_entity": "Current gas price",
-          "smart_flexible_load_name": "Flexible load name",
-          "smart_flexible_load_power_w": "Flexible load power",
+          "smart_flexible_load_name": "Flexible device name",
+          "smart_flexible_load_power_w": "Flexible device power",
           "smart_electric_efficiency": "Electric efficiency",
           "smart_gas_efficiency": "Gas efficiency",
           "smart_gas_kwh_per_m3": "Gas energy content",
           "smart_solar_surplus_threshold_w": "Solar surplus threshold",
           "smart_advice_language": "Advice language"
+        },
+        "data_description": {
+          "smart_setup_enabled": "Enables the Smart Energy Advisor. Disabling it preserves your settings for later.",
+          "smart_flexible_load_name": "A device whose use can be shifted, such as an electric water heater, EV charger, heat pump or other flexible appliance.",
+          "smart_flexible_load_power_w": "Electrical power draw of the flexible device in watts (W).",
+          "smart_grid_power_entity": "Current total grid power in W. Positive is import; negative is export.",
+          "smart_solar_power_entity": "Optional current total solar production in W. With multiple inverters, use a combined template sensor. May be left empty with a usable grid/P1 sensor.",
+          "smart_gas_price_entity": "Optional current gas price in EUR/m³ for gas-versus-electric heat comparison.",
+          "smart_electric_efficiency": "Efficiency/COP of electric heating. Use 1.0 for direct resistance heating.",
+          "smart_gas_efficiency": "Estimated gas-heating efficiency as a fraction, for example 0.90 for 90%.",
+          "smart_gas_kwh_per_m3": "Energy content of gas in kWh per m³ used for useful-heat cost comparison.",
+          "smart_solar_surplus_threshold_w": "Minimum meaningful measured solar surplus in W before EnerPrice treats it as partial surplus.",
+          "smart_advice_language": "Language used for Smart Energy Advisor recommendations."
         }
       }
     },
