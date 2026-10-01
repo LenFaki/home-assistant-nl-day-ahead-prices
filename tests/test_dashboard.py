@@ -69,3 +69,14 @@ def test_dashboard_can_hide_smart_energy_context() -> None:
 
     assert "entity: sensor.grid" not in yaml
     assert "heading: Smart Energy" not in yaml
+
+
+def test_dashboard_localizes_dynamic_advisor_and_chart_labels() -> None:
+    nl = generate_dashboard_yaml(language="nl")
+    en = generate_dashboard_yaml(language="en")
+
+    assert "**Volgende gunstiger prijs:**" in nl
+    assert "label: Nu" in nl
+    assert "**Next better price:**" in en
+    assert "label: Now" in en
+    assert "Volgende gunstiger prijs" not in en
