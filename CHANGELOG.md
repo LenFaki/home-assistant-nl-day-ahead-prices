@@ -1,5 +1,25 @@
 # Changelog
 
+## 2.5.1 - 2026-10-01
+
+### Fixed
+- Refresh Smart Energy Advisor state safely on the Home Assistant event loop when configured P1/grid, solar or gas entities change, avoiding thread-safety warnings and stale live measurements.
+- Preserve Smart Setup entity selections, efficiencies, flexible-device settings and advice language when Smart Setup is disabled and later re-enabled.
+- Treat tiny measured grid export below the configured solar-surplus threshold as insignificant instead of reporting a misleading partial surplus.
+- Generate Smart Energy dashboards without guessed optional Entity Registry IDs, preventing `Entiteit niet gevonden` cards when optional entities are unavailable or disabled.
+- Hide missing advisor copy instead of rendering a literal `None` value.
+
+### Improved
+- Rename flexible-load wording to the clearer `flexibel apparaat` / `flexible device` terminology.
+- Add field-level Smart Setup guidance for P1 sign convention, units, gas-price input, efficiencies, solar measurements and flexible-device power.
+- Clarify that a separate solar-production sensor is optional when usable P1/grid measurements are available and that multiple inverter sensors can be combined with a Home Assistant template sensor.
+- Expand regression coverage for Smart Setup lifecycle behavior, dashboard generation and meaningful solar-surplus thresholds.
+
+### Compatibility
+- Existing EnerPrice entities, services, integration domain and v2.5.0 configuration remain compatible.
+- EnerPrice remains advisory and does not automatically switch connected devices.
+
+
 ## 2.5.0 - 2026-10-01
 
 ### Added
