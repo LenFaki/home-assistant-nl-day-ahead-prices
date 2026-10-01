@@ -60,19 +60,32 @@
       },
       "smart_setup": {
         "title": "Smart Energy instellen",
-        "description": "Optioneel: kies de Home Assistant-metingen en één flexibele belasting voor automatisch Smart Energy-advies. EnerPrice geeft alleen advies en schakelt geen apparaten. Positief netvermogen is afname; negatief netvermogen is teruglevering.",
+        "description": "Optioneel: kies Home Assistant-metingen en één flexibel apparaat voor automatisch Smart Energy-advies. EnerPrice geeft alleen advies en schakelt geen apparaten.",
         "data": {
           "smart_setup_enabled": "Smart Energy Setup inschakelen",
           "smart_grid_power_entity": "Netvermogen / P1-sensor",
           "smart_solar_power_entity": "Actuele zonneproductie",
           "smart_gas_price_entity": "Actuele gasprijs",
-          "smart_flexible_load_name": "Naam flexibele belasting",
-          "smart_flexible_load_power_w": "Vermogen flexibele belasting",
+          "smart_flexible_load_name": "Naam flexibel apparaat",
+          "smart_flexible_load_power_w": "Vermogen van flexibel apparaat",
           "smart_electric_efficiency": "Elektrisch rendement",
           "smart_gas_efficiency": "Gasrendement",
           "smart_gas_kwh_per_m3": "Energie-inhoud gas",
           "smart_solar_surplus_threshold_w": "Drempel zonne-overschot",
           "smart_advice_language": "Taal van advies"
+        },
+        "data_description": {
+          "smart_setup_enabled": "Schakelt de Smart Energy Advisor in. Uitschakelen bewaart je instellingen voor later.",
+          "smart_flexible_load_name": "Een apparaat waarvan het gebruik kan worden verschoven, bijvoorbeeld een elektrische boiler, laadpaal, warmtepomp of ander flexibel apparaat.",
+          "smart_flexible_load_power_w": "Het elektrische opnamevermogen van het flexibele apparaat in watt (W).",
+          "smart_grid_power_entity": "Actueel totaal netvermogen in W. Positief is afname; negatief is teruglevering.",
+          "smart_solar_power_entity": "Optionele actuele totale zonneproductie in W. Gebruik bij meerdere omvormers een gecombineerde templatesensor. Mag leeg blijven met een bruikbare P1/netvermogensensor.",
+          "smart_gas_price_entity": "Optionele actuele gasprijs in EUR/m³ voor vergelijking van gas met elektrisch verwarmen.",
+          "smart_electric_efficiency": "Rendement/COP van elektrisch verwarmen. Gebruik 1,0 voor een direct elektrisch verwarmingselement.",
+          "smart_gas_efficiency": "Geschat rendement van gasverwarming als fractie, bijvoorbeeld 0,90 voor 90%.",
+          "smart_gas_kwh_per_m3": "Energie-inhoud van aardgas in kWh per m³ voor de vergelijking van warmtekosten.",
+          "smart_solar_surplus_threshold_w": "Minimaal betekenisvol gemeten zonne-overschot in W voordat EnerPrice dit als gedeeltelijk overschot behandelt.",
+          "smart_advice_language": "Taal voor de aanbeveling van de Smart Energy Advisor."
         }
       }
     },
