@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.5.2 - 2026-10-01
+
+### Fixed
+- Ignore disabled or stale Entity Registry entries when generating dashboards, preventing optional cards from being generated for entities that Home Assistant reports as `Entiteit niet gevonden`.
+- Keep temporarily unavailable entities eligible for dashboards when they still have a valid Home Assistant State object.
+
+### Improved
+- Cache shared serialized price arrays once per coordinator analysis cycle instead of rebuilding them independently for every EnerPrice sensor, reducing repeated work during state updates.
+- Target the slow `today_score` state-update warning observed during real Home Assistant validation without removing existing price attributes or dashboard compatibility.
+
+### Compatibility
+- Existing EnerPrice entities, services, integration domain and v2.5.1 configuration remain compatible.
+- EnerPrice remains advisory and does not automatically switch connected devices.
+
 ## 2.5.1 - 2026-10-01
 
 ### Fixed
