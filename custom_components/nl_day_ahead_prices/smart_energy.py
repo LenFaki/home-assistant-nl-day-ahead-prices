@@ -49,7 +49,8 @@ def build_smart_energy_advice(
     partial_surplus = (
         flexible_load_power_w is not None
         and available_surplus is not None
-        and 0 < available_surplus < flexible_load_power_w
+        and available_surplus >= solar_surplus_threshold_w
+        and available_surplus < flexible_load_power_w
     )
     surplus_coverage = (
         min(100.0, available_surplus / flexible_load_power_w * 100)
