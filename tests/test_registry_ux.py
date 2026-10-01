@@ -404,7 +404,7 @@ async def test_options_flow_selector_defaults_and_cache_preview(monkeypatch, mod
         "homeassistant": {"config_entries": SimpleNamespace(ConfigFlow=BaseFlow, OptionsFlow=BaseFlow)},
         "homeassistant.const": {"CONF_NAME": "name"},
         "homeassistant.data_entry_flow": {"FlowResult": dict},
-        "homeassistant.helpers.selector": {"SelectSelector": lambda data: data, "SelectSelectorConfig": dict},
+        "homeassistant.helpers.selector": {\n                "EntitySelector": lambda data: data, "EntitySelectorConfig": dict,\n                "NumberSelector": lambda data: data, "NumberSelectorConfig": dict,\n                "NumberSelectorMode": SimpleNamespace(BOX="box"),\n                "SelectSelector": lambda data: data, "SelectSelectorConfig": dict,\n            },
     }
     for name, attrs in modules.items():
         module = ModuleType(name)
