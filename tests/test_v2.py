@@ -349,6 +349,16 @@ def test_compact_dashboard_uses_native_advisor_blocks_without_chart() -> None:
     assert "max_columns: 1" in generated
 
 
+def test_energy_advisor_dashboard_can_omit_apexcharts() -> None:
+    generated = generate_dashboard_yaml(
+        "energy_advisor",
+        include_price_chart=False,
+        smart_setup={"enabled": True},
+    )
+    assert "heading: Smart Energy" in generated
+    assert "custom:apexcharts-card" not in generated
+
+
 def test_automation_yaml_generation() -> None:
     generated = generate_automation_yaml(
         "boiler_best_period",
