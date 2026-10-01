@@ -35,6 +35,11 @@ def generate_dashboard_yaml(
         "smart_energy_advisor": "sensor.nl_day_ahead_smart_energy_advisor",
     }
     ids.update(entity_ids or {})
+    # Do not guess IDs for optional entities when the Entity Registry was inspected.
+    if entity_ids is not None:
+        for optional_key in ("best_price_period", "next_best_price_period_start", "smart_energy_advisor"):
+            if optional_key not in entity_ids:
+                ids[optional_key] = None
     smart = smart_setup or {}
     lang = "nl" if language == "nl" else "en"
     labels = {
@@ -45,7 +50,7 @@ def generate_dashboard_yaml(
             "best": "Goedkoop prijsblok actief", "next_best": "Volgende goedkope periode",
             "supplier": "Leverancier", "provider": "Prijsbron", "chart": "Prijsverloop",
             "smart": "Smart Energy", "grid": "Netvermogen", "solar": "Zonneproductie",
-            "gas": "Gasprijs", "load": "Flexibele verbruiker", "now": "Nu",
+            "gas": "Gasprijs", "load": "Flexibel apparaat", "now": "Nu",
             "next_better": "Volgende gunstiger prijs", "score_word": "score",
             "smart_advice": "Smart Energy advies", "heat_cost": "Warmtekosten",
         },
@@ -75,7 +80,10 @@ def generate_dashboard_yaml(
               # {{{{ icon }}}} {{{{ title }}}}
               **{{{{ states('{ids["current_all_in_price"]}') }}}} €/kWh** · {labels["score_word"]} {{{{ states('{ids["price_score"]}') }}}}/100
 
-              {{{{ summary | default(state_attr('{ids["price_advisor"]}', 'recommendation'), true) }}}}
+              {{% set recommendation = summary or state_attr('{ids["price_advisor"]}', 'recommendation') %}}
+              {{% if recommendation %}}
+              {{{{ recommendation }}}}
+              {{% endif %}}
 
               {{% set better_time = state_attr('{ids["price_advisor"]}', 'next_better_time') %}}
               {{% set better_price = state_attr('{ids["price_advisor"]}', 'next_better_price') %}}
@@ -116,11 +124,14 @@ def generate_dashboard_yaml(
             entity: {ids["tomorrow_prices_available"]}
             name: {labels["tomorrow"]}
 """
-        if include_best_periods:
+        if include_best_periods and ids.get("best_price_period"):
             details += f"""
           - type: tile
             entity: {ids["best_price_period"]}
             name: {labels["best"]}
+"""
+        if include_best_periods and ids.get("next_best_price_period_start"):
+            details += f"""
           - type: tile
             entity: {ids["next_best_price_period_start"]}
             name: {labels["next_best"]}
