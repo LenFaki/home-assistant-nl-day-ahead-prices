@@ -5,7 +5,16 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from .const import DOMAIN, MARKET_PROVIDER_DEFAULTS, RUNTIME_DEFAULTS, SUPPLIER_UPDATES_AUTOMATIC
+from .const import (
+    CONF_GAS_PRICE_ENTITY,
+    CONF_GRID_POWER_ENTITY,
+    CONF_SMART_SETUP_ENABLED,
+    CONF_SOLAR_POWER_ENTITY,
+    DOMAIN,
+    MARKET_PROVIDER_DEFAULTS,
+    RUNTIME_DEFAULTS,
+    SUPPLIER_UPDATES_AUTOMATIC,
+)
 from .supplier_registry import supplier_update_mode
 
 if TYPE_CHECKING:
@@ -66,8 +75,7 @@ async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> Non
     coordinator = hass.data[DOMAIN][entry.entry_id]
     previous = coordinator.configured_options
     current = {**entry.data, **entry.options}
-    if all(previous.get(key, default) == current.get(key, default)
-           for key, default in MARKET_PROVIDER_DEFAULTS.items()):
+    if not _requires_reload(previous, current):
         coordinator.configured_options = current
         for key, default in RUNTIME_DEFAULTS.items():
             if previous.get(key, default) != current.get(key, default):
@@ -85,3 +93,19 @@ def _platforms() -> list:
     from homeassistant.const import Platform
 
     return [Platform.SENSOR, Platform.BINARY_SENSOR, Platform.NUMBER, Platform.SWITCH]
+
+
+def _requires_reload(previous: dict, current: dict) -> bool:
+    """Return whether an option change requires rebuilding platforms/listeners."""
+    if any(
+        previous.get(key, default) != current.get(key, default)
+        for key, default in MARKET_PROVIDER_DEFAULTS.items()
+    ):
+        return True
+    smart_listener_keys = (
+        CONF_SMART_SETUP_ENABLED,
+        CONF_GRID_POWER_ENTITY,
+        CONF_SOLAR_POWER_ENTITY,
+        CONF_GAS_PRICE_ENTITY,
+    )
+    return any(previous.get(key) != current.get(key) for key in smart_listener_keys)
