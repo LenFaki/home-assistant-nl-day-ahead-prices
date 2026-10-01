@@ -207,3 +207,15 @@ def test_flexible_load_power_must_be_positive():
             flexible_load_power_w=0,
             now=NOW,
         )
+
+
+def test_exact_five_percent_future_threshold_can_trigger_wait_with_gas():
+    prices = [PriceEntry(NOW + timedelta(minutes=15), 0.19)]
+    result = build_smart_energy_advice(
+        electricity_price=0.20,
+        future_prices=prices,
+        gas_price_per_m3=3.0,
+        now=NOW,
+    )
+    assert result["state"] == "wait"
+    assert result["next_better_price"] == 0.19
