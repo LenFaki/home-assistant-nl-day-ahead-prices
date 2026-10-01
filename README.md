@@ -690,4 +690,4 @@ After enabling **Smart Setup**, EnerPrice creates a persistent **Smart Energy Ad
 
 Before relying on the advice, verify the configured inputs in Home Assistant: grid power is in W with positive = import and negative = export, solar production is in W, and gas price is in EUR/m³. Missing or unavailable inputs remain unknown rather than being treated as zero. Smart Setup supports one flexible load in v2.5 and remains advisory only; EnerPrice does not switch the load.
 
-For a practical verification sequence and dashboard examples, see [Dashboard recipes](docs/dashboard-recipes.md).
+For a practical verification sequence and dashboard examples, see [Dashboard recipes](docs/dashboard-recipes.md). For the final real-installation release gate, use [the v2.5 Home Assistant validation checklist](docs/v2.5-ha-validation.md).
