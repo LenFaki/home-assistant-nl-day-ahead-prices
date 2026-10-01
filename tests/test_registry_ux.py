@@ -707,6 +707,38 @@ def test_explicit_smart_service_values_override_stored_defaults(monkeypatch):
     assert "grid_power_entity" not in explicit
 
 
+def test_dashboard_smart_setup_uses_entry_options(monkeypatch):
+    module = _load_services_v2_for_smart_defaults(monkeypatch)
+    entry = SimpleNamespace(
+        data={"smart_setup_enabled": True},
+        options={
+            "smart_grid_power_entity": "sensor.p1",
+            "smart_solar_power_entity": "sensor.solar",
+            "smart_gas_price_entity": "sensor.gas",
+            "smart_flexible_load_name": "Boiler",
+            "smart_flexible_load_power_w": 1500,
+            "smart_advice_language": "nl",
+        },
+    )
+    setup = module._dashboard_smart_setup(entry)
+    assert setup["enabled"] is True
+    assert setup["grid_power_entity"] == "sensor.p1"
+    assert setup["solar_power_entity"] == "sensor.solar"
+    assert setup["gas_price_entity"] == "sensor.gas"
+    assert setup["flexible_load_name"] == "Boiler"
+    assert setup["flexible_load_power_w"] == 1500
+    assert setup["language"] == "nl"
+
+
+def test_dashboard_smart_setup_disabled_is_explicit(monkeypatch):
+    module = _load_services_v2_for_smart_defaults(monkeypatch)
+    entry = SimpleNamespace(
+        data={},
+        options={"smart_setup_enabled": False},
+    )
+    assert module._dashboard_smart_setup(entry) == {"enabled": False}
+
+
 async def test_pending_market_update_publishes_current_entry_mode(runtime, monkeypatch):
     from custom_components.nl_day_ahead_prices.models import ProviderResult
 
