@@ -48,6 +48,7 @@ def sensor_module(monkeypatch):
         "homeassistant.core": {"HomeAssistant": object},
         "homeassistant.helpers": {},
         "homeassistant.helpers.entity_platform": {"AddEntitiesCallback": object},
+        "homeassistant.helpers.event": {"async_track_state_change_event": lambda *args, **kwargs: (lambda: None)},
         "homeassistant.helpers.update_coordinator": {"CoordinatorEntity": CoordinatorEntity},
         "homeassistant.util": {"dt": SimpleNamespace(now=lambda: datetime(2026, 9, 8, 10, tzinfo=timezone.utc))},
         "custom_components.nl_day_ahead_prices.coordinator": {"NLDayAheadPricesCoordinator": object},
