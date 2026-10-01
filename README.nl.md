@@ -139,6 +139,10 @@ je gegenereerde YAML activeert.
 
 ### HACS
 
+EnerPrice is momenteel via HACS te installeren als custom repository. De
+voorbereiding voor officiële opname in de standaardcatalogus van HACS is bezig.
+Totdat die inzending is geaccepteerd, voeg je de repository handmatig toe:
+
 1. Voeg deze repository toe als custom repository in HACS.
 2. Kies categorie **Integration**.
 3. Installeer **EnerPrice**.

@@ -33,13 +33,6 @@
           "energy_tax_incl_vat": "Energy tax including VAT",
           "supplier_markup_excl_vat": "Supplier markup excluding VAT",
           "vat": "VAT"
-        },
-        "options": {
-          "price_resolution": {
-            "auto": "Automatic based on supplier",
-            "hourly": "Hourly prices",
-            "quarter_hour": "Quarter-hour prices"
-          }
         }
       },
       "supplier_summary": {
@@ -101,6 +94,13 @@
       "options": {
         "automatic": "Automatic (recommended)",
         "bundled": "Bundled only"
+      }
+    },
+    "price_resolution": {
+      "options": {
+        "auto": "Automatic based on supplier",
+        "hourly": "Hourly prices",
+        "quarter_hour": "Quarter-hour prices"
       }
     }
   },

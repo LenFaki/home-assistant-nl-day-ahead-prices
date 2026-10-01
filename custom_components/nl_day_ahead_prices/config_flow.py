@@ -319,12 +319,15 @@ class NLDayAheadPricesOptionsFlow(config_entries.OptionsFlow):
                 vol.Optional(
                     CONF_PRICE_RESOLUTION,
                     default=data.get(CONF_PRICE_RESOLUTION, DEFAULT_PRICE_RESOLUTION),
-                ): vol.In(
-                    [
-                        PRICE_RESOLUTION_AUTO,
-                        PRICE_RESOLUTION_HOURLY,
-                        PRICE_RESOLUTION_QUARTER_HOUR,
-                    ]
+                ): SelectSelector(
+                    SelectSelectorConfig(
+                        options=[
+                            PRICE_RESOLUTION_AUTO,
+                            PRICE_RESOLUTION_HOURLY,
+                            PRICE_RESOLUTION_QUARTER_HOUR,
+                        ],
+                        translation_key=CONF_PRICE_RESOLUTION,
+                    )
                 ),
                 vol.Optional(
                     CONF_ENERGY_TAX,
