@@ -102,3 +102,12 @@ Behandel de Smart Energy Advisor als advies en voeg eigen veiligheidsvoorwaarden
 8. Test de Smart Energy Advisor handmatig via Ontwikkelaarstools > Acties; met Smart Setup hoeft de `data:`-sectie voor opgeslagen defaults niet opnieuw te worden ingevuld.
 9. Genereer of kopieer een dashboardvoorbeeld.
 10. Bouw pas daarna apparaat-automatiseringen met expliciete veiligheidsvoorwaarden.
+
+
+## V2.5 praktische validatie
+
+Schakel Smart Setup in en controleer daarna de blijvende **Smart Energy Advisor**-entiteit op de EnerPrice-apparaatpagina. Laat één ingestelde bron (P1/netvermogen, zonneproductie of gasprijs) veranderen en controleer of status en attributen van de adviseur mee verversen. Genereer vervolgens een `energy_advisor`-dashboard en controleer dat de werkelijke advisor entity-ID wordt gebruikt, alleen ingestelde optionele bronnen worden getoond en de weergave ook op mobiel bruikbaar blijft.
+
+De verwachte statussen zijn `solar_surplus`, `cheap_grid`, `wait`, `gas` en `normal`. Controleer waar mogelijk zowel uur- als kwartierprijzen. Ontbrekende of niet-beschikbare invoer moet onbekend blijven en mag nooit als een foutief nulsignaal worden geïnterpreteerd. Expliciete waarden in `get_smart_energy_advice` blijven voorrang houden boven opgeslagen Smart Setup-standaarden.
+
+V2.5 ondersteunt bewust één flexibele verbruiker en geeft alleen advies. Meerdere verbruikers, EV-specifieke Smart Setup-logica, batterijoptimalisatie en volledige optimalisatie van teruglever-/opportunity costs vallen buiten deze release.
