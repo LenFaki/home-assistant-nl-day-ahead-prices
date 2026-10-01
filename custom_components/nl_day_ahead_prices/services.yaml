@@ -138,7 +138,12 @@ find_best_appliance_window:
       default: true
       selector: {boolean: {}}
 generate_dashboard_yaml:
+  name: Generate Smart Energy dashboard YAML
+  description: Generate an adaptive EnerPrice dashboard using the selected config entry and optional Smart Setup entities.
   fields:
+    config_entry_id:
+      description: Optional EnerPrice config entry ID. Required when multiple EnerPrice entries are loaded.
+      selector: {text: {}}
     dashboard_type:
       default: full
       selector: {select: {options: [compact, full, energy_advisor]}}
@@ -163,6 +168,12 @@ generate_dashboard_yaml:
     include_battery_strategy:
       default: false
       selector: {boolean: {}}
+    include_smart_energy:
+      default: true
+      selector: {boolean: {}}
+    language:
+      default: auto
+      selector: {select: {options: [auto, en, nl]}}
     theme:
       default: auto
       selector: {select: {options: [auto, light, dark]}}

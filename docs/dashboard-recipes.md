@@ -96,3 +96,12 @@ Treat Smart Energy Advisor output as advice and add your own safety conditions b
 8. Test Smart Energy Advisor manually in Developer Tools > Actions; with Smart Setup, stored defaults no longer need to be repeated in `data:`.
 9. Generate/copy a dashboard recipe.
 10. Only then build device-control automations with explicit safety conditions.
+
+
+## Phase 4: adaptive Smart Energy dashboard
+
+The dashboard generator can resolve the actual EnerPrice entity IDs for a selected config entry. When Smart Setup is enabled it adds only the configured context entities (grid/P1 power, solar production and gas price) and the configured flexible-load name/power. Missing optional inputs are omitted instead of producing broken cards.
+
+When multiple EnerPrice config entries are loaded, pass `config_entry_id`. `language: auto` follows the Home Assistant language; `en` and `nl` can be selected explicitly. Set `include_smart_energy: false` to omit the Smart Energy context.
+
+Dashboard generation remains advisory only and does not control devices.
