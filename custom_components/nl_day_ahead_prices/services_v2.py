@@ -15,6 +15,7 @@ from .calculations import all_in_entries_for_supplier, calculate_supplier_export
 from .const import (
     CONF_ADVICE_LANGUAGE,
     CONF_ELECTRIC_EFFICIENCY,
+    CONF_FLEXIBLE_LOAD_NAME,
     CONF_FLEXIBLE_LOAD_POWER_W,
     CONF_GAS_EFFICIENCY,
     CONF_GAS_KWH_PER_M3,
@@ -25,6 +26,7 @@ from .const import (
     CONF_SOLAR_SURPLUS_THRESHOLD_W,
     DEFAULT_ADVICE_LANGUAGE,
     DEFAULT_ELECTRIC_EFFICIENCY,
+    DEFAULT_FLEXIBLE_LOAD_NAME,
     DEFAULT_GAS_EFFICIENCY,
     DEFAULT_GAS_KWH_PER_M3,
     DEFAULT_SOLAR_SURPLUS_THRESHOLD_W,
@@ -114,6 +116,7 @@ SERVICE_SCHEMAS = {
     ),
     "generate_dashboard_yaml": vol.Schema(
         {
+            vol.Optional("config_entry_id"): cv.string,
             vol.Optional("dashboard_type", default="full"): vol.In(["compact", "full", "energy_advisor"]),
             vol.Optional("include_market_price", default=True): cv.boolean,
             vol.Optional("include_all_in_price", default=True): cv.boolean,
@@ -153,9 +156,18 @@ def async_register_v2_services(hass: HomeAssistant) -> None:
         data = dict(call.data)
         name = call.service
         if name == "generate_dashboard_yaml":
-            coordinator = _coordinator(hass)
-            entity_ids = _dashboard_entity_ids(hass, coordinator.entry.entry_id) if coordinator else None
-            return {"yaml": generate_dashboard_yaml(**data, entity_ids=entity_ids)}
+            coordinator = _coordinator(hass, data.pop("config_entry_id", None))
+            if coordinator is None:
+                return {"error": "Select an EnerPrice config entry when multiple entries are loaded"}
+            entity_ids = _dashboard_entity_ids(hass, coordinator.entry.entry_id)
+            smart_setup = _dashboard_smart_setup(coordinator.entry)
+            return {
+                "yaml": generate_dashboard_yaml(
+                    **data,
+                    entity_ids=entity_ids,
+                    smart_setup=smart_setup,
+                )
+            }
         if name == "generate_automation_yaml":
             return {"yaml": generate_automation_yaml(**data)}
         coordinator = _coordinator(hass, data.pop("config_entry_id", None))
@@ -256,6 +268,33 @@ def _dashboard_entity_ids(hass: HomeAssistant, config_entry_id: str) -> dict[str
             if entity.unique_id.endswith(f"_{key}"):
                 by_unique_suffix[key] = entity.entity_id
     return by_unique_suffix
+
+
+
+def _dashboard_smart_setup(entry) -> dict[str, Any]:
+    """Return dashboard-safe Smart Setup values for one config entry."""
+    options = {**entry.data, **entry.options}
+    if not options.get(CONF_SMART_SETUP_ENABLED, False):
+        return {"enabled": False}
+    return {
+        "enabled": True,
+        "grid_power_entity": options.get(CONF_GRID_POWER_ENTITY),
+        "solar_power_entity": options.get(CONF_SOLAR_POWER_ENTITY),
+        "gas_price_entity": options.get(CONF_GAS_PRICE_ENTITY),
+        "flexible_load_name": options.get(
+            CONF_FLEXIBLE_LOAD_NAME, DEFAULT_FLEXIBLE_LOAD_NAME
+        ),
+        "flexible_load_power_w": options.get(CONF_FLEXIBLE_LOAD_POWER_W),
+        "electric_efficiency": options.get(
+            CONF_ELECTRIC_EFFICIENCY, DEFAULT_ELECTRIC_EFFICIENCY
+        ),
+        "gas_efficiency": options.get(CONF_GAS_EFFICIENCY, DEFAULT_GAS_EFFICIENCY),
+        "gas_kwh_per_m3": options.get(CONF_GAS_KWH_PER_M3, DEFAULT_GAS_KWH_PER_M3),
+        "solar_surplus_threshold_w": options.get(
+            CONF_SOLAR_SURPLUS_THRESHOLD_W, DEFAULT_SOLAR_SURPLUS_THRESHOLD_W
+        ),
+        "language": options.get(CONF_ADVICE_LANGUAGE, DEFAULT_ADVICE_LANGUAGE),
+    }
 
 
 def _prices(coordinator, price_type: str, include_sell_fee: bool) -> list[PriceEntry]:
