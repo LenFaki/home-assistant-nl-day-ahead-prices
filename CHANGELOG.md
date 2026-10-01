@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.4.1 - In development
+## 2.4.1 - 2026-10-01
 
 ### Improved
 - Register EnerPrice services once at integration-level setup instead of tying service availability to a loaded config entry.
