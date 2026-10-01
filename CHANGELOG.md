@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.4.1 - In development
+
+### Improved
+- Register EnerPrice services once at integration-level setup instead of tying service availability to a loaded config entry.
+- Add optional `flexible_load_power_w` to Smart Energy Advisor so measured surplus can be compared with the actual flexible-load demand.
+- Distinguish full and partial surplus, expose surplus coverage, and include the remaining grid share in effective electric heat cost comparisons.
+- Add English and Dutch copy-ready dashboard/setup recipes as groundwork for a future guided onboarding wizard.
+
+### Compatibility
+- Existing Smart Energy Advisor calls without `flexible_load_power_w` keep the v2.4.0 surplus-threshold behavior.
+- EnerPrice remains advisory and does not directly switch user devices.
+- Existing service names and response fields remain available.
+
 ## 2.4.0 - 2026-09-30
 
 ### Added
