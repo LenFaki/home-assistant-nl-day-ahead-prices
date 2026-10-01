@@ -258,3 +258,32 @@ def test_effective_cost_is_labeled_as_purchased_energy_only():
     )
     assert result["cost_model"] == "purchased_energy_only"
     assert result["effective_electric_heat_cost_per_kwh"] == 0.10
+
+def test_advisor_contract_exposes_dashboard_fields_in_both_languages():
+    for language in ("en", "nl"):
+        result = build_smart_energy_advice(
+            electricity_price=0.30,
+            future_prices=[PriceEntry(NOW + timedelta(minutes=30), 0.12)],
+            gas_price_per_m3=1.50,
+            grid_power_w=-500,
+            flexible_load_power_w=1500,
+            now=NOW,
+            language=language,
+        )
+        assert result["state"] in {"solar_surplus", "cheap_grid", "wait", "gas", "normal"}
+        assert result["recommendation"]
+        assert "effective_electric_heat_cost_per_kwh" in result
+        assert "gas_heat_cost_per_kwh" in result
+        assert "next_better_time" in result
+        assert result["surplus_source"] == "measured_grid_export"
+
+
+def test_unknown_inputs_are_distinct_from_real_zero_values():
+    unknown = build_smart_energy_advice(electricity_price=0.20, now=NOW)
+    zero_grid = build_smart_energy_advice(electricity_price=0.20, grid_power_w=0.0, now=NOW)
+
+    assert unknown["surplus_source"] == "unknown"
+    assert unknown["measured_solar_surplus_w"] is None
+    assert zero_grid["surplus_source"] == "measured_grid_export"
+    assert zero_grid["measured_solar_surplus_w"] == 0.0
+

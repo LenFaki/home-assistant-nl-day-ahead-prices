@@ -30,9 +30,7 @@ Starting with v2.5, **Smart Setup** can optionally be enabled in the EnerPrice o
 
 Smart Setup is optional and remains disabled by default for existing installations. Existing v2.4.x calls keep working. Values explicitly supplied in a service call always take precedence over stored Smart Setup values.
 
-The Smart Energy Advisor is a response action.
-
-The Smart Energy Advisor is a response action. A practical setup uses:
+The Smart Energy Advisor is available both as a response action and, when Smart Setup is enabled, as a persistent sensor. A practical setup uses:
 - an EnerPrice config entry with current all-in prices;
 - a gas-price entity in EUR/m³ (optional);
 - a grid/P1 power entity in W (recommended);
@@ -105,3 +103,12 @@ The dashboard generator can resolve the actual EnerPrice entity IDs for a select
 When multiple EnerPrice config entries are loaded, pass `config_entry_id`. `language: auto` follows the Home Assistant language; `en` and `nl` can be selected explicitly. Set `include_smart_energy: false` to omit the Smart Energy context.
 
 Dashboard generation remains advisory only and does not control devices.
+
+
+## V2.5 practical validation
+
+After enabling Smart Setup, verify the persistent **Smart Energy Advisor** entity on the EnerPrice device page. Change or observe one configured input (grid/P1, solar or gas) and confirm that the advisor state/attributes refresh. Generate an `energy_advisor` dashboard and confirm it references the actual advisor entity ID, shows only configured optional inputs, and remains usable on a narrow mobile view.
+
+Expected states are `solar_surplus`, `cheap_grid`, `wait`, `gas` and `normal`. Check both hourly and quarter-hour configurations when available. Missing/unavailable inputs must remain unknown; they must never become a false zero-value signal. Explicit values passed to `get_smart_energy_advice` continue to override stored Smart Setup defaults.
+
+V2.5 intentionally supports one flexible load and advice only. Multiple loads, EV-specific Smart Setup logic, battery optimization and full export/opportunity-cost optimization remain outside this release scope.
