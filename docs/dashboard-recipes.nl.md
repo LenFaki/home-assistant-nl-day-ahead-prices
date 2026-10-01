@@ -30,8 +30,6 @@ Vanaf v2.5 kun je **Smart Setup** optioneel inschakelen via de EnerPrice-opties.
 
 Smart Setup is optioneel en staat voor bestaande installaties standaard uit. Bestaande v2.4.x-servicecalls blijven werken. Waarden die je expliciet in een servicecall meegeeft hebben altijd voorrang op de opgeslagen Smart Setup-instellingen.
 
-De Smart Energy Advisor is een response-actie.
-
 De Smart Energy Advisor is een response-actie. Een praktische inrichting gebruikt:
 - een werkende EnerPrice-configuratie met actuele all-in prijzen;
 - optioneel een gasprijssensor in €/m³;
@@ -63,9 +61,9 @@ Handige antwoordvelden zijn `state`, `recommendation`, `cheapest_now`, `electric
 
 `effective_electric_heat_cost_per_kwh` gebruikt in v2.5 het model `purchased_energy_only`: beschikbaar overschot krijgt geen extra inkoopkosten en alleen het resterende netaandeel wordt tegen het actuele all-in tarief gerekend. Dit is **geen volledige economische kostenberekening**; mogelijke gemiste terugleververgoeding/opportunity cost van zelf gebruikte energie wordt niet meegerekend.
 
-## 4. Een EnerPrice-dashboard genereren
+## 4. Een Smart Energy-dashboard genereren
 
-Je hoeft een dashboard niet volledig zelf te schrijven. Voer uit:
+Met v2.5 gebruikt `generate_dashboard_yaml` bij `dashboard_type: energy_advisor` automatisch de Smart Setup van de gekozen EnerPrice-configuratie. De gegenereerde native Markdown/Sections-kaart toont waar beschikbaar het actuele advies, de all-in stroomprijs, effectieve elektrische kosten, gaswarmtekosten, gemeten overschot, ingesteld apparaatvermogen, overschotdekking en het volgende duidelijk gunstiger interval.
 
 ```yaml
 action: nl_day_ahead_prices.generate_dashboard_yaml
@@ -76,9 +74,12 @@ data:
   include_supplier_info: true
   include_best_periods: true
   include_price_advisor: true
+  include_price_chart: false
 ```
 
-Kopieer de teruggegeven YAML naar een Home Assistant-dashboard. Ook `compact` en `full` zijn beschikbaar.
+Bij één EnerPrice-configuratie wordt die automatisch gebruikt. Heb je meerdere configuraties, geef dan `config_entry_id` mee zodat de juiste entity-ID's en Smart Setup worden gebruikt. De kaart behandelt ontbrekende gas-, zonne- of P1-waarden als niet beschikbaar en niet als nul.
+
+`include_price_chart: false` maakt het dashboard volledig met native Home Assistant-kaarten. Zet dit op `true` als je ook de optionele ApexCharts-prijsgrafiek wilt. `compact` en `full` blijven beschikbaar voor de bestaande dashboardindelingen.
 
 ## 5. Veilig automatiseren
 
