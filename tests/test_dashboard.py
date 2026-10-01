@@ -80,3 +80,17 @@ def test_dashboard_localizes_dynamic_advisor_and_chart_labels() -> None:
     assert "**Next better price:**" in en
     assert "label: Now" in en
     assert "Volgende gunstiger prijs" not in en
+
+
+def test_dashboard_prominently_renders_smart_energy_advisor() -> None:
+    yaml = generate_dashboard_yaml(
+        language="nl",
+        entity_ids={"smart_energy_advisor": "sensor.my_smart_energy_advisor"},
+        smart_setup={"enabled": True, "grid_power_entity": "sensor.grid_power"},
+    )
+
+    assert "entity: sensor.my_smart_energy_advisor" in yaml
+    assert "title: Smart Energy advies" in yaml
+    assert "effective_electric_heat_cost_per_kwh" in yaml
+    assert "gas_heat_cost_per_kwh" in yaml
+    assert "next_better_time" in yaml

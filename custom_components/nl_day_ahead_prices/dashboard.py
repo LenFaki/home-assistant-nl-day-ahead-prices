@@ -32,6 +32,7 @@ def generate_dashboard_yaml(
         "next_best_price_period_start": "sensor.nl_day_ahead_prices_next_best_price_period_start",
         "selected_supplier": "sensor.nl_day_ahead_prices_selected_supplier",
         "current_provider": "sensor.nl_day_ahead_prices_current_provider",
+        "smart_energy_advisor": "sensor.nl_day_ahead_smart_energy_advisor",
     }
     ids.update(entity_ids or {})
     smart = smart_setup or {}
@@ -46,6 +47,7 @@ def generate_dashboard_yaml(
             "smart": "Smart Energy", "grid": "Netvermogen", "solar": "Zonneproductie",
             "gas": "Gasprijs", "load": "Flexibele verbruiker", "now": "Nu",
             "next_better": "Volgende gunstiger prijs", "score_word": "score",
+            "smart_advice": "Smart Energy advies", "heat_cost": "Warmtekosten",
         },
         "en": {
             "view": "Energy advice", "heading": "Energy advice", "advisor": "EnerPrice Advisor",
@@ -56,6 +58,7 @@ def generate_dashboard_yaml(
             "smart": "Smart Energy", "grid": "Grid power", "solar": "Solar production",
             "gas": "Gas price", "load": "Flexible load", "now": "Now",
             "next_better": "Next better price", "score_word": "score",
+            "smart_advice": "Smart Energy advice", "heat_cost": "Heat cost",
         },
     }[lang]
 
@@ -156,14 +159,35 @@ def generate_dashboard_yaml(
             load_card = f"""          - type: markdown
             content: "**{labels['load']}:** {name}{power}"
 """
-        if tiles or load_card:
+        smart_advisor = ids.get("smart_energy_advisor")
+        advisor_card = ""
+        if smart_advisor:
+            advisor_card = f"""          - type: markdown
+            title: {labels["smart_advice"]}
+            content: |-
+              {{% set state = states('{smart_advisor}') %}}
+              {{% set icon = {{'solar_surplus':'☀️','cheap_grid':'🟢','wait':'⏳','gas':'🔥','normal':'⚪'}}.get(state, '⚪') %}}
+              # {{{{ icon }}}} {{{{ state_attr('{smart_advisor}', 'recommendation') | default('{labels["smart"]}', true) }}}}
+              {{% set electric = state_attr('{smart_advisor}', 'effective_electric_heat_cost_per_kwh') %}}
+              {{% set gas = state_attr('{smart_advisor}', 'gas_heat_cost_per_kwh') %}}
+              {{% if electric is not none %}}**{labels["heat_cost"]}:** ⚡ {{{{ electric }}}} €/kWh{{% endif %}}
+              {{% if gas is not none %}} · 🔥 {{{{ gas }}}} €/kWh{{% endif %}}
+              {{% set better = state_attr('{smart_advisor}', 'next_better_time') %}}
+              {{% if better %}}
+              **{labels["next_better"]}:** {{{{ as_timestamp(better) | timestamp_custom('%H:%M') }}}}
+              {{% endif %}}
+          - type: tile
+            entity: {smart_advisor}
+            name: {labels["smart_advice"]}
+"""
+        if tiles or load_card or advisor_card:
             smart_cards = f"""
       - type: grid
         cards:
           - type: heading
             heading: {labels["smart"]}
             icon: mdi:home-lightning-bolt
-{''.join(tiles)}{load_card}"""
+{advisor_card}{''.join(tiles)}{load_card}"""
 
     graph = ""
     if dashboard_type in {"full", "energy_advisor"}:
