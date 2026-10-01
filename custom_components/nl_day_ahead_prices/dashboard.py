@@ -50,87 +50,33 @@ def generate_dashboard_yaml(
               {{{{ summary | default(state_attr('{ids["price_advisor"]}', 'recommendation'), true) }}}}
 
               {{% set better_time = state_attr('{ids["price_advisor"]}', 'next_better_time') %}}
-              {{% set better_price = state_attr('{ids["price_advisor"]}', 'next_better_price') %}}
-              {{% if better_time and better_price is not none %}}
-              **Volgende gunstiger prijs:** {{{{ as_timestamp(better_time) | timestamp_custom('%H:%M') }}}} · {{{{ better_price | round(3) }}}} €/kWh
-              {{% endif %}}
-          - type: tile
-            entity: {ids["price_advisor"]}
-            name: Advies
-          - type: tile
-            entity: {ids["price_score"]}
-            name: Prijsscore
-"""
-
-    smart_energy = ""
-    if dashboard_type == "energy_advisor" and smart.get("enabled"):
-        grid_entity = smart.get("grid_power_entity")
-        solar_entity = smart.get("solar_power_entity")
-        gas_entity = smart.get("gas_price_entity")
-        load_name = str(smart.get("flexible_load_name") or "Flexible load")
-        load_power = smart.get("flexible_load_power_w")
-        electric_efficiency = smart.get("electric_efficiency", 1.0)
-        gas_efficiency = smart.get("gas_efficiency", 0.90)
-        gas_kwh = smart.get("gas_kwh_per_m3", 9.769)
-
-        grid_expr = (
-            f"states('{grid_entity}') | float(none)"
-            if grid_entity
-            else "none"
-        )
-        solar_expr = (
-            f"states('{solar_entity}') | float(none)"
-            if solar_entity
-            else "none"
-        )
-        gas_expr = (
-            f"states('{gas_entity}') | float(none)"
-            if gas_entity
-            else "none"
-        )
-        load_expr = str(float(load_power)) if load_power is not None else "none"
-        smart_energy = f"""
-      - type: grid
-        cards:
-          - type: heading
-            heading: Smart Energy
-            icon: mdi:home-lightning-bolt
-          - type: markdown
-            title: {load_name}
-            content: |-
-              {{% set price = states('{ids["current_all_in_price"]}') | float(none) %}}
-              {{% set grid = {grid_expr} %}}
-              {{% set solar = {solar_expr} %}}
-              {{% set gas = {gas_expr} %}}
-              {{% set load = {load_expr} %}}
-              {{% set electric_eff = {float(electric_efficiency)} %}}
-              {{% set gas_eff = {float(gas_efficiency)} %}}
-              {{% set gas_kwh = {float(gas_kwh)} %}}
-              {{% set measured = [0, -grid] | max if grid is not none else none %}}
-              {{% set fallback = [0, solar] | max if measured is none and solar is not none else none %}}
-              {{% set available = measured if measured is not none else fallback %}}
-              {{% set coverage = ([100, available / load * 100] | min) if available is not none and load else none %}}
-              {{% set electric_cost = price / electric_eff if price is not none and electric_eff > 0 else none %}}
-              {{% set grid_share = (([0, load - available] | max) / load) if load and available is not none else 1 %}}
-              {{% set effective_cost = electric_cost * grid_share if electric_cost is not none else none %}}
-              {{% set gas_cost = gas / (gas_kwh * gas_eff) if gas is not none and gas_kwh > 0 and gas_eff > 0 else none %}}
-              {{% set better_time = state_attr('{ids["price_advisor"]}', 'next_better_time') %}}
+              {{% set better_price = state_attr('{ids["price_advisor"]}', 'next_better_price') | float(none) %}}
               {{% set wait = state_attr('{ids["price_advisor"]}', 'minutes_until_better') %}}
+              {{% set future_cost = better_price / electric_eff if better_price is not none and electric_eff > 0 else none %}}
+              {{% set partial = load and available is not none and available > 0 and available < load %}}
               {{% if load and measured is not none and measured >= load %}}
                 {{% set status = '🟢 Gebruik nu' %}}
                 {{% set reason = 'De volledige ingestelde belasting kan door gemeten teruglevering worden gedekt.' %}}
-              {{% elif load and measured is not none and measured > 0 %}}
-                {{% set status = '🟢 Gedeeltelijk overschot' %}}
-                {{% set reason = 'Een deel van de belasting kan door gemeten teruglevering worden gedekt.' %}}
-              {{% elif effective_cost is not none and gas_cost is not none and effective_cost <= gas_cost %}}
-                {{% set status = '🟢 Elektrisch gunstig' %}}
-                {{% set reason = 'De ingekochte elektrische energie is in dit model nu voordeliger dan gas.' %}}
               {{% elif gas_cost is not none and effective_cost is not none %}}
-                {{% set status = '🟠 Gas gunstiger' %}}
-                {{% set reason = 'Gas heeft op dit moment lagere berekende kosten per kWh bruikbare warmte.' %}}
-              {{% elif price is not none %}}
-                {{% set status = '🟡 Prijsadvies beschikbaar' %}}
-                {{% set reason = 'Niet alle optionele Smart Energy-bronnen zijn beschikbaar.' %}}
+                {{% set baseline = [effective_cost, gas_cost] | min %}}
+                {{% if not partial and future_cost is not none and future_cost <= baseline * 0.95 %}}
+                  {{% set status = '🟡 Wacht' %}}
+                  {{% set reason = 'Een duidelijk goedkoper elektrisch interval komt eraan.' %}}
+                {{% elif effective_cost <= gas_cost %}}
+                  {{% set status = '🟢 Elektrisch gunstig' %}}
+                  {{% set reason = 'De ingekochte elektrische energie is in dit model nu voordeliger dan gas.' %}}
+                {{% else %}}
+                  {{% set status = '🟠 Gas gunstiger' %}}
+                  {{% set reason = 'Gas heeft op dit moment lagere berekende kosten per kWh bruikbare warmte.' %}}
+                {{% endif %}}
+              {{% elif effective_cost is not none %}}
+                {{% if not partial and future_cost is not none and future_cost <= effective_cost * 0.95 %}}
+                  {{% set status = '🟡 Wacht' %}}
+                  {{% set reason = 'Een duidelijk goedkoper elektrisch interval komt eraan.' %}}
+                {{% else %}}
+                  {{% set status = '🟢 Elektrisch beschikbaar' %}}
+                  {{% set reason = 'Er is prijsinformatie voor elektrisch gebruik; een gasvergelijking ontbreekt.' %}}
+                {{% endif %}}
               {{% else %}}
                 {{% set status = '⚪ Onvoldoende gegevens' %}}
                 {{% set reason = 'De actuele stroomprijs is niet beschikbaar.' %}}
