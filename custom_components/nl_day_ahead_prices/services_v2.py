@@ -91,6 +91,7 @@ SERVICE_SCHEMAS = {
             vol.Optional("gas_efficiency", default=0.90): vol.All(vol.Coerce(float), vol.Range(min=0.01, max=1)),
             vol.Optional("gas_kwh_per_m3", default=9.769): vol.All(vol.Coerce(float), vol.Range(min=0.01)),
             vol.Optional("solar_surplus_threshold_w", default=500): vol.All(vol.Coerce(float), vol.Range(min=0)),
+            vol.Optional("flexible_load_power_w"): vol.All(vol.Coerce(float), vol.Range(min=0.01)),
             vol.Optional("language", default="en"): vol.In(["en", "nl"]),
         }
     ),
