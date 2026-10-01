@@ -13,8 +13,11 @@ def generate_dashboard_yaml(
     include_price_advisor: bool = True,
     include_ev_planner: bool = False,
     include_battery_strategy: bool = False,
+    include_smart_energy: bool = True,
     theme: str = "auto",
+    language: str = "auto",
     entity_ids: dict[str, str] | None = None,
+    smart_setup: dict[str, object] | None = None,
 ) -> str:
     """Generate a CasaRegie-inspired EnerPrice Sections dashboard."""
     theme_line = "" if theme == "auto" else f"theme: {theme}\\n"
@@ -31,12 +34,34 @@ def generate_dashboard_yaml(
         "current_provider": "sensor.nl_day_ahead_prices_current_provider",
     }
     ids.update(entity_ids or {})
+    smart = smart_setup or {}
+    lang = "nl" if language == "nl" else "en"
+    labels = {
+        "nl": {
+            "view": "Energieadvies", "heading": "Energieadvies", "advisor": "EnerPrice Advisor",
+            "advice": "Advies", "score": "Prijsscore", "all_in": "All-in prijs nu",
+            "market": "Marktprijs nu", "outlook": "Vooruitblik", "tomorrow": "Prijzen morgen",
+            "best": "Goedkoop prijsblok actief", "next_best": "Volgende goedkope periode",
+            "supplier": "Leverancier", "provider": "Prijsbron", "chart": "Prijsverloop",
+            "smart": "Smart Energy", "grid": "Netvermogen", "solar": "Zonneproductie",
+            "gas": "Gasprijs", "load": "Flexibele verbruiker",
+        },
+        "en": {
+            "view": "Energy advice", "heading": "Energy advice", "advisor": "EnerPrice Advisor",
+            "advice": "Advice", "score": "Price score", "all_in": "All-in price now",
+            "market": "Market price now", "outlook": "Outlook", "tomorrow": "Tomorrow prices",
+            "best": "Cheap price block active", "next_best": "Next cheap period",
+            "supplier": "Supplier", "provider": "Price source", "chart": "Price trend",
+            "smart": "Smart Energy", "grid": "Grid power", "solar": "Solar production",
+            "gas": "Gas price", "load": "Flexible load",
+        },
+    }[lang]
 
     advisor = ""
     if include_price_advisor:
         advisor = f"""
           - type: markdown
-            title: EnerPrice Advisor
+            title: {labels["advisor"]}
             content: |-
               {{% set a = states('{ids["price_advisor"]}') %}}
               {{% set summary = state_attr('{ids["price_advisor"]}', 'summary') %}}
@@ -54,10 +79,10 @@ def generate_dashboard_yaml(
               {{% endif %}}
           - type: tile
             entity: {ids["price_advisor"]}
-            name: Advies
+            name: {labels["advice"]}
           - type: tile
             entity: {ids["price_score"]}
-            name: Prijsscore
+            name: {labels["score"]}
 """
 
     price_tiles = ""
@@ -65,13 +90,13 @@ def generate_dashboard_yaml(
         price_tiles += f"""
           - type: tile
             entity: {ids["current_all_in_price"]}
-            name: All-in prijs nu
+            name: {labels["all_in"]}
 """
     if include_market_price:
         price_tiles += f"""
           - type: tile
             entity: {ids["current_market_price"]}
-            name: Marktprijs nu
+            name: {labels["market"]}
 """
 
     details = ""
@@ -80,30 +105,63 @@ def generate_dashboard_yaml(
       - type: grid
         cards:
           - type: heading
-            heading: Vooruitblik
+            heading: {labels["outlook"]}
             icon: mdi:clock-fast
           - type: tile
             entity: {ids["tomorrow_prices_available"]}
-            name: Prijzen morgen
+            name: {labels["tomorrow"]}
 """
         if include_best_periods:
             details += f"""
           - type: tile
             entity: {ids["best_price_period"]}
-            name: Goedkoop prijsblok actief
+            name: {labels["best"]}
           - type: tile
             entity: {ids["next_best_price_period_start"]}
-            name: Volgende goedkope periode
+            name: {labels["next_best"]}
 """
         if include_supplier_info:
             details += f"""
           - type: tile
             entity: {ids["selected_supplier"]}
-            name: Leverancier
+            name: {labels["supplier"]}
           - type: tile
             entity: {ids["current_provider"]}
-            name: Prijsbron
+            name: {labels["provider"]}
 """
+
+    smart_cards = ""
+    if include_smart_energy and smart.get("enabled"):
+        tiles = []
+        for key, label in (
+            ("grid_power_entity", labels["grid"]),
+            ("solar_power_entity", labels["solar"]),
+            ("gas_price_entity", labels["gas"]),
+        ):
+            if smart.get(key):
+                tiles.append(
+                    f"""          - type: tile
+            entity: {smart[key]}
+            name: {label}
+"""
+                )
+        load_name = smart.get("flexible_load_name")
+        load_power = smart.get("flexible_load_power_w")
+        load_card = ""
+        if load_name or load_power:
+            name = load_name or labels["load"]
+            power = f" · {float(load_power):g} W" if load_power is not None else ""
+            load_card = f"""          - type: markdown
+            content: "**{labels['load']}:** {name}{power}"
+"""
+        if tiles or load_card:
+            smart_cards = f"""
+      - type: grid
+        cards:
+          - type: heading
+            heading: {labels["smart"]}
+            icon: mdi:home-lightning-bolt
+{''.join(tiles)}{load_card}"""
 
     graph = ""
     if dashboard_type in {"full", "energy_advisor"}:
@@ -111,7 +169,7 @@ def generate_dashboard_yaml(
       - type: grid
         cards:
           - type: heading
-            heading: Prijsverloop
+            heading: {labels["chart"]}
             icon: mdi:chart-line
           - type: custom:apexcharts-card
             graph_span: 48h
@@ -139,7 +197,7 @@ def generate_dashboard_yaml(
 
     return f"""{theme_line}title: EnerPrice
 views:
-  - title: Energieadvies
+  - title: {labels["view"]}
     path: energy-advisor
     type: sections
     max_columns: {columns}
@@ -147,9 +205,9 @@ views:
       - type: grid
         cards:
           - type: heading
-            heading: Energieadvies
+            heading: {labels["heading"]}
             icon: mdi:lightning-bolt-circle
-{advisor}{price_tiles}{planner_note}{details}{graph}"""
+{advisor}{price_tiles}{planner_note}{smart_cards}{details}{graph}"""
 
 def generate_automation_yaml(
     automation_type: str,
