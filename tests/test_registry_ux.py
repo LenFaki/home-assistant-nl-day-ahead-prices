@@ -696,11 +696,15 @@ def test_explicit_smart_service_values_override_stored_defaults(monkeypatch):
         "language": "nl",
     }
     explicit = {"electric_efficiency": 1.2, "language": "en"}
+    resolved_grid_entity = explicit.pop("grid_power_entity", stored.get("grid_power_entity"))
+    for key in ("gas_price_entity", "solar_power_entity", "grid_power_entity"):
+        stored.pop(key, None)
     for key, value in stored.items():
         explicit.setdefault(key, value)
+    assert resolved_grid_entity == "sensor.stored_grid"
     assert explicit["electric_efficiency"] == 1.2
     assert explicit["language"] == "en"
-    assert explicit["grid_power_entity"] == "sensor.stored_grid"
+    assert "grid_power_entity" not in explicit
 
 
 async def test_pending_market_update_publishes_current_entry_mode(runtime, monkeypatch):
