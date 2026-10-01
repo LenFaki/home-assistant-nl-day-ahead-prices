@@ -24,7 +24,13 @@ name: Prijsadvies
 
 De Prijsadviseur geeft snel prijsadvies en heeft geen gas-, zonne- of P1-sensor nodig.
 
-## 3. Slim tapwateradvies
+## 3. Smart Setup en slim tapwateradvies
+
+Vanaf v2.5 kun je **Smart Setup** optioneel inschakelen via de EnerPrice-opties. Daar kun je de P1/netvermogenssensor, actuele zonneproductie, gasprijssensor, naam en vermogen van één flexibele verbruiker, rendementen, gasinhoud, overschotdrempel en adviestaal opslaan. De Smart Energy Advisor gebruikt deze waarden daarna automatisch; je hoeft dezelfde entity-ID's en instellingen dus niet bij iedere actie opnieuw mee te geven.
+
+Smart Setup is optioneel en staat voor bestaande installaties standaard uit. Bestaande v2.4.x-servicecalls blijven werken. Waarden die je expliciet in een servicecall meegeeft hebben altijd voorrang op de opgeslagen Smart Setup-instellingen.
+
+De Smart Energy Advisor is een response-actie.
 
 De Smart Energy Advisor is een response-actie. Een praktische inrichting gebruikt:
 - een werkende EnerPrice-configuratie met actuele all-in prijzen;
@@ -32,7 +38,9 @@ De Smart Energy Advisor is een response-actie. Een praktische inrichting gebruik
 - bij voorkeur een P1/netvermogenssensor in W;
 - optioneel het elektrische vermogen van het flexibele apparaat in W.
 
-Voor netvermogen verwacht EnerPrice **positief = afname** en **negatief = teruglevering**. `unknown` en `unavailable` worden niet als nul behandeld.
+Voor netvermogen verwacht EnerPrice **positief = afname** en **negatief = teruglevering**. `unknown`, `unavailable` en ontbrekende waarden worden niet als nul behandeld.
+
+Wanneer P1/netvermogen beschikbaar is, is teruglevering de gemeten basis voor het overschot. Ontbreekt netvermogen maar is actuele zonneproductie beschikbaar, dan gebruikt EnerPrice die alleen als expliciete fallback (`surplus_source: solar_production_fallback`). Dit is productie en **geen gemeten netto-overschot**, omdat huishoudelijk verbruik dan onbekend is. Zonder beide bronnen blijft `surplus_source` `unknown`.
 
 Voorbeeld:
 
@@ -51,7 +59,9 @@ data:
 
 Met `flexible_load_power_w` maakt EnerPrice onderscheid tussen volledig en gedeeltelijk overschot. Bij een apparaat van 1500 W is 500 W teruglevering dus 33,3% dekking en niet langer automatisch voldoende om volledig op overschot te draaien. Het resterende netaandeel wordt meegenomen in de effectieve elektrische warmtekosten.
 
-Handige antwoordvelden zijn `state`, `recommendation`, `cheapest_now`, `electric_heat_cost_per_kwh`, `effective_electric_heat_cost_per_kwh`, `gas_heat_cost_per_kwh`, `measured_solar_surplus_w`, `partial_surplus`, `surplus_coverage_percent`, `required_surplus_w`, `next_better_time` en `minutes_until_better`.
+Handige antwoordvelden zijn `state`, `recommendation`, `cheapest_now`, `electric_heat_cost_per_kwh`, `effective_electric_heat_cost_per_kwh`, `gas_heat_cost_per_kwh`, `measured_solar_surplus_w`, `surplus_source`, `partial_surplus`, `surplus_coverage_percent`, `required_surplus_w`, `cost_model`, `next_better_time` en `minutes_until_better`.
+
+`effective_electric_heat_cost_per_kwh` gebruikt in v2.5 het model `purchased_energy_only`: beschikbaar overschot krijgt geen extra inkoopkosten en alleen het resterende netaandeel wordt tegen het actuele all-in tarief gerekend. Dit is **geen volledige economische kostenberekening**; mogelijke gemiste terugleververgoeding/opportunity cost van zelf gebruikte energie wordt niet meegerekend.
 
 ## 4. Een EnerPrice-dashboard genereren
 
@@ -78,9 +88,11 @@ Behandel de Smart Energy Advisor als advies en voeg eigen veiligheidsvoorwaarden
 
 1. Installeer en configureer EnerPrice.
 2. Controleer of **Huidige All-in Prijs** een plausibele waarde heeft.
-3. Zoek de P1/netvermogenssensor en controleer de tekenrichting.
-4. Voeg een gasprijssensor toe als je warmtebronnen wilt vergelijken.
-5. Vul het echte elektrische vermogen van het flexibele apparaat in zodra dat bekend is.
-6. Test de Smart Energy Advisor handmatig via Ontwikkelaarstools > Acties.
-7. Genereer of kopieer een dashboardvoorbeeld.
-8. Bouw pas daarna apparaat-automatiseringen met expliciete veiligheidsvoorwaarden.
+3. Open de EnerPrice-opties en schakel desgewenst **Smart Setup** in.
+4. Selecteer de P1/netvermogenssensor en controleer de tekenrichting.
+5. Voeg een gasprijssensor toe als je warmtebronnen wilt vergelijken.
+6. Selecteer actuele zonneproductie als aanvullende context/fallback gewenst is.
+7. Vul het echte elektrische vermogen van het flexibele apparaat in zodra dat bekend is.
+8. Test de Smart Energy Advisor handmatig via Ontwikkelaarstools > Acties; met Smart Setup hoeft de `data:`-sectie voor opgeslagen defaults niet opnieuw te worden ingevuld.
+9. Genereer of kopieer een dashboardvoorbeeld.
+10. Bouw pas daarna apparaat-automatiseringen met expliciete veiligheidsvoorwaarden.
