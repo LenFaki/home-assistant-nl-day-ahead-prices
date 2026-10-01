@@ -15,6 +15,7 @@ from .calculations import all_in_entries_for_supplier, calculate_supplier_export
 from .const import (
     CONF_ADVICE_LANGUAGE,
     CONF_ELECTRIC_EFFICIENCY,
+    CONF_FLEXIBLE_LOAD_NAME,
     CONF_FLEXIBLE_LOAD_POWER_W,
     CONF_GAS_EFFICIENCY,
     CONF_GAS_KWH_PER_M3,
@@ -114,6 +115,7 @@ SERVICE_SCHEMAS = {
     ),
     "generate_dashboard_yaml": vol.Schema(
         {
+            vol.Optional("config_entry_id"): cv.string,
             vol.Optional("dashboard_type", default="full"): vol.In(["compact", "full", "energy_advisor"]),
             vol.Optional("include_market_price", default=True): cv.boolean,
             vol.Optional("include_all_in_price", default=True): cv.boolean,
@@ -122,7 +124,9 @@ SERVICE_SCHEMAS = {
             vol.Optional("include_price_advisor", default=True): cv.boolean,
             vol.Optional("include_ev_planner", default=False): cv.boolean,
             vol.Optional("include_battery_strategy", default=False): cv.boolean,
+            vol.Optional("include_smart_energy", default=True): cv.boolean,
             vol.Optional("theme", default="auto"): vol.In(["auto", "light", "dark"]),
+            vol.Optional("language", default="auto"): vol.In(["auto", "en", "nl"]),
         }
     ),
     "generate_automation_yaml": vol.Schema(
@@ -153,9 +157,26 @@ def async_register_v2_services(hass: HomeAssistant) -> None:
         data = dict(call.data)
         name = call.service
         if name == "generate_dashboard_yaml":
-            coordinator = _coordinator(hass)
-            entity_ids = _dashboard_entity_ids(hass, coordinator.entry.entry_id) if coordinator else None
-            return {"yaml": generate_dashboard_yaml(**data, entity_ids=entity_ids)}
+            config_entry_id = data.pop("config_entry_id", None)
+            coordinator = _coordinator(hass, config_entry_id)
+            if coordinator is None:
+                return {
+                    "error": (
+                        "EnerPrice config entry could not be selected. "
+                        "Set config_entry_id when multiple entries are loaded."
+                    )
+                }
+            entity_ids = _dashboard_entity_ids(hass, coordinator.entry.entry_id)
+            language = data.get("language", "auto")
+            if language == "auto":
+                data["language"] = "nl" if hass.config.language.startswith("nl") else "en"
+            return {
+                "yaml": generate_dashboard_yaml(
+                    **data,
+                    entity_ids=entity_ids,
+                    smart_setup=_dashboard_smart_setup(coordinator.entry),
+                )
+            }
         if name == "generate_automation_yaml":
             return {"yaml": generate_automation_yaml(**data)}
         coordinator = _coordinator(hass, data.pop("config_entry_id", None))
@@ -314,3 +335,18 @@ def _state_float(hass: HomeAssistant, entity_id: str | None) -> float | None:
         return float(state.state)
     except (TypeError, ValueError):
         return None
+
+
+def _dashboard_smart_setup(entry) -> dict[str, Any]:
+    """Return non-sensitive Smart Setup context for the dashboard generator."""
+    options = {**entry.data, **entry.options}
+    if not options.get(CONF_SMART_SETUP_ENABLED, False):
+        return {"enabled": False}
+    return {
+        "enabled": True,
+        "grid_power_entity": options.get(CONF_GRID_POWER_ENTITY),
+        "solar_power_entity": options.get(CONF_SOLAR_POWER_ENTITY),
+        "gas_price_entity": options.get(CONF_GAS_PRICE_ENTITY),
+        "flexible_load_name": options.get(CONF_FLEXIBLE_LOAD_NAME),
+        "flexible_load_power_w": options.get(CONF_FLEXIBLE_LOAD_POWER_W),
+    }
