@@ -33,13 +33,6 @@
           "energy_tax_incl_vat": "Energiebelasting inclusief btw",
           "supplier_markup_excl_vat": "Leveranciersopslag exclusief btw",
           "vat": "BTW"
-        },
-        "menu_options": {
-          "price_resolution": {
-            "auto": "Automatisch op basis van leverancier",
-            "hourly": "Uurprijzen",
-            "quarter_hour": "Kwartierprijzen"
-          }
         }
       },
       "supplier_summary": {
@@ -101,6 +94,13 @@
       "options": {
         "automatic": "Automatisch (aanbevolen)",
         "bundled": "Alleen meegeleverd"
+      }
+    },
+    "price_resolution": {
+      "options": {
+        "auto": "Automatisch op basis van leverancier",
+        "hourly": "Uurprijzen",
+        "quarter_hour": "Kwartierprijzen"
       }
     }
   },
