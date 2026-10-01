@@ -123,6 +123,7 @@ SERVICE_SCHEMAS = {
             vol.Optional("include_supplier_info", default=True): cv.boolean,
             vol.Optional("include_best_periods", default=True): cv.boolean,
             vol.Optional("include_price_advisor", default=True): cv.boolean,
+            vol.Optional("include_price_chart", default=True): cv.boolean,
             vol.Optional("include_ev_planner", default=False): cv.boolean,
             vol.Optional("include_battery_strategy", default=False): cv.boolean,
             vol.Optional("theme", default="auto"): vol.In(["auto", "light", "dark"]),
