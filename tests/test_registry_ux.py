@@ -439,6 +439,100 @@ async def test_options_flow_selector_defaults_and_cache_preview(monkeypatch, mod
     session.get.assert_not_called()
 
 
+
+def _smart_setup_flow(module, current=None):
+    """Build a lightweight options-flow instance for Smart Setup unit tests."""
+    flow = module.NLDayAheadPricesOptionsFlow()
+    flow._pending_options = dict(current or {})
+    flow.async_create_entry = lambda **kwargs: {"type": "create_entry", **kwargs}
+    flow.async_show_form = lambda **kwargs: {"type": "form", **kwargs}
+    return flow
+
+
+def test_smart_setup_validation_requires_positive_load_when_enabled():
+    from custom_components.nl_day_ahead_prices.config_flow import _validate_smart_setup
+
+    errors = _validate_smart_setup({
+        "smart_setup_enabled": True,
+        "smart_flexible_load_power_w": 0,
+        "smart_electric_efficiency": 1.0,
+        "smart_gas_efficiency": 0.9,
+        "smart_gas_kwh_per_m3": 9.769,
+        "smart_solar_surplus_threshold_w": 500,
+    })
+    assert errors == {"smart_flexible_load_power_w": "positive_value_required"}
+
+
+def test_smart_setup_validation_accepts_complete_enabled_setup():
+    from custom_components.nl_day_ahead_prices.config_flow import _validate_smart_setup
+
+    assert _validate_smart_setup({
+        "smart_setup_enabled": True,
+        "smart_flexible_load_power_w": 1500,
+        "smart_electric_efficiency": 1.0,
+        "smart_gas_efficiency": 0.9,
+        "smart_gas_kwh_per_m3": 9.769,
+        "smart_solar_surplus_threshold_w": 500,
+    }) == {}
+
+
+async def test_smart_setup_disabled_preserves_base_options_and_clears_smart_values():
+    from custom_components.nl_day_ahead_prices import config_flow as module
+
+    flow = _smart_setup_flow(module, {
+        "selected_supplier": "zonneplan",
+        "smart_setup_enabled": True,
+        "smart_grid_power_entity": "sensor.old_grid",
+        "smart_flexible_load_power_w": 1500,
+        "smart_advice_language": "nl",
+    })
+    result = await flow.async_step_smart_setup({"smart_setup_enabled": False})
+    assert result["type"] == "create_entry"
+    assert result["data"]["selected_supplier"] == "zonneplan"
+    assert result["data"]["smart_setup_enabled"] is False
+    assert "smart_grid_power_entity" not in result["data"]
+    assert "smart_flexible_load_power_w" not in result["data"]
+    assert "smart_advice_language" not in result["data"]
+
+
+async def test_smart_setup_enabled_saves_entities_load_efficiencies_and_language():
+    from custom_components.nl_day_ahead_prices import config_flow as module
+
+    flow = _smart_setup_flow(module, {"selected_supplier": "zonneplan"})
+    user_input = {
+        "smart_setup_enabled": True,
+        "smart_grid_power_entity": "sensor.p1_power",
+        "smart_solar_power_entity": "sensor.solar_power",
+        "smart_gas_price_entity": "sensor.gas_price",
+        "smart_flexible_load_name": "Boiler",
+        "smart_flexible_load_power_w": 1500,
+        "smart_electric_efficiency": 1.0,
+        "smart_gas_efficiency": 0.9,
+        "smart_gas_kwh_per_m3": 9.769,
+        "smart_solar_surplus_threshold_w": 500,
+        "smart_advice_language": "nl",
+    }
+    result = await flow.async_step_smart_setup(user_input)
+    assert result["type"] == "create_entry"
+    assert result["data"]["selected_supplier"] == "zonneplan"
+    for key, value in user_input.items():
+        assert result["data"][key] == value
+
+
+async def test_custom_supplier_smart_setup_preserves_custom_fields():
+    from custom_components.nl_day_ahead_prices import config_flow as module
+
+    flow = _smart_setup_flow(module, {
+        "selected_supplier": "custom",
+        "custom_supplier_name": "Mijn leverancier",
+        "custom_purchase_fee_electricity": 0.025,
+    })
+    result = await flow.async_step_smart_setup({"smart_setup_enabled": False})
+    assert result["data"]["selected_supplier"] == "custom"
+    assert result["data"]["custom_supplier_name"] == "Mijn leverancier"
+    assert result["data"]["custom_purchase_fee_electricity"] == 0.025
+
+
 async def test_pending_market_update_publishes_current_entry_mode(runtime, monkeypatch):
     from custom_components.nl_day_ahead_prices.models import ProviderResult
 
