@@ -12,7 +12,24 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 
 from .calculations import all_in_entries_for_supplier, calculate_supplier_export_fee
-from .const import DOMAIN
+from .const import (
+    CONF_ADVICE_LANGUAGE,
+    CONF_ELECTRIC_EFFICIENCY,
+    CONF_FLEXIBLE_LOAD_POWER_W,
+    CONF_GAS_EFFICIENCY,
+    CONF_GAS_KWH_PER_M3,
+    CONF_GAS_PRICE_ENTITY,
+    CONF_GRID_POWER_ENTITY,
+    CONF_SMART_SETUP_ENABLED,
+    CONF_SOLAR_POWER_ENTITY,
+    CONF_SOLAR_SURPLUS_THRESHOLD_W,
+    DEFAULT_ADVICE_LANGUAGE,
+    DEFAULT_ELECTRIC_EFFICIENCY,
+    DEFAULT_GAS_EFFICIENCY,
+    DEFAULT_GAS_KWH_PER_M3,
+    DEFAULT_SOLAR_SURPLUS_THRESHOLD_W,
+    DOMAIN,
+)
 from .dashboard import generate_automation_yaml, generate_dashboard_yaml
 from .models import PriceEntry, current_price
 from .planning import plan_appliance, plan_battery, plan_ev_charging, plan_export, plan_heating
@@ -87,12 +104,12 @@ SERVICE_SCHEMAS = {
             vol.Optional("gas_price_per_m3"): vol.All(vol.Coerce(float), vol.Range(min=0)),
             vol.Optional("solar_power_w"): vol.Coerce(float),
             vol.Optional("grid_power_w"): vol.Coerce(float),
-            vol.Optional("electric_efficiency", default=1.0): vol.All(vol.Coerce(float), vol.Range(min=0.01)),
-            vol.Optional("gas_efficiency", default=0.90): vol.All(vol.Coerce(float), vol.Range(min=0.01, max=1)),
-            vol.Optional("gas_kwh_per_m3", default=9.769): vol.All(vol.Coerce(float), vol.Range(min=0.01)),
-            vol.Optional("solar_surplus_threshold_w", default=500): vol.All(vol.Coerce(float), vol.Range(min=0)),
+            vol.Optional("electric_efficiency"): vol.All(vol.Coerce(float), vol.Range(min=0.01)),
+            vol.Optional("gas_efficiency"): vol.All(vol.Coerce(float), vol.Range(min=0.01, max=1)),
+            vol.Optional("gas_kwh_per_m3"): vol.All(vol.Coerce(float), vol.Range(min=0.01)),
+            vol.Optional("solar_surplus_threshold_w"): vol.All(vol.Coerce(float), vol.Range(min=0)),
             vol.Optional("flexible_load_power_w"): vol.All(vol.Coerce(float), vol.Range(min=0.01)),
-            vol.Optional("language", default="en"): vol.In(["en", "nl"]),
+            vol.Optional("language"): vol.In(["en", "nl"]),
         }
     ),
     "generate_dashboard_yaml": vol.Schema(
@@ -147,21 +164,21 @@ def async_register_v2_services(hass: HomeAssistant) -> None:
         if name == "get_smart_energy_advice":
             prices = _prices(coordinator, "all_in", True)
             now = dt_util.now()
+            stored = _smart_setup_defaults(coordinator.entry)
             gas_price = data.pop("gas_price_per_m3", None)
             solar_power = data.pop("solar_power_w", None)
             grid_power = data.pop("grid_power_w", None)
+            gas_entity = data.pop("gas_price_entity", stored.get("gas_price_entity"))
+            solar_entity = data.pop("solar_power_entity", stored.get("solar_power_entity"))
+            grid_entity = data.pop("grid_power_entity", stored.get("grid_power_entity"))
             if gas_price is None:
-                gas_price = _state_float(hass, data.pop("gas_price_entity", None))
-            else:
-                data.pop("gas_price_entity", None)
+                gas_price = _state_float(hass, gas_entity)
             if solar_power is None:
-                solar_power = _state_float(hass, data.pop("solar_power_entity", None))
-            else:
-                data.pop("solar_power_entity", None)
+                solar_power = _state_float(hass, solar_entity)
             if grid_power is None:
-                grid_power = _state_float(hass, data.pop("grid_power_entity", None))
-            else:
-                data.pop("grid_power_entity", None)
+                grid_power = _state_float(hass, grid_entity)
+            for key, value in stored.items():
+                data.setdefault(key, value)
             result = build_smart_energy_advice(
                 electricity_price=current_price(prices, now),
                 future_prices=prices,
@@ -258,6 +275,30 @@ def _serialize(value: Any) -> Any:
     if isinstance(value, list):
         return [_serialize(item) for item in value]
     return value
+
+
+
+def _smart_setup_defaults(entry) -> dict[str, Any]:
+    """Return stored Smart Setup values as service argument defaults."""
+    options = {**entry.data, **entry.options}
+    if not options.get(CONF_SMART_SETUP_ENABLED, False):
+        return {}
+
+    defaults = {
+        "gas_price_entity": options.get(CONF_GAS_PRICE_ENTITY),
+        "solar_power_entity": options.get(CONF_SOLAR_POWER_ENTITY),
+        "grid_power_entity": options.get(CONF_GRID_POWER_ENTITY),
+        "flexible_load_power_w": options.get(CONF_FLEXIBLE_LOAD_POWER_W),
+        "electric_efficiency": options.get(CONF_ELECTRIC_EFFICIENCY, DEFAULT_ELECTRIC_EFFICIENCY),
+        "gas_efficiency": options.get(CONF_GAS_EFFICIENCY, DEFAULT_GAS_EFFICIENCY),
+        "gas_kwh_per_m3": options.get(CONF_GAS_KWH_PER_M3, DEFAULT_GAS_KWH_PER_M3),
+        "solar_surplus_threshold_w": options.get(
+            CONF_SOLAR_SURPLUS_THRESHOLD_W, DEFAULT_SOLAR_SURPLUS_THRESHOLD_W
+        ),
+        "language": options.get(CONF_ADVICE_LANGUAGE, DEFAULT_ADVICE_LANGUAGE),
+    }
+    return {key: value for key, value in defaults.items() if value is not None}
+
 
 
 def _state_float(hass: HomeAssistant, entity_id: str | None) -> float | None:
