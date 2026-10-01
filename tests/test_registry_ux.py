@@ -304,6 +304,11 @@ def test_translations_and_version():
             "remote", "cached_remote", "bundled",
         }
     assert json.loads((base / "manifest.json").read_text())["version"] == "2.4.1"
+    for path in (base / "strings.json", base / "translations/en.json", base / "translations/nl.json"):
+        content = json.loads(path.read_text())
+        assert "smart_setup" in content["options"]["step"]
+        assert "smart_setup_enabled" in content["options"]["step"]["smart_setup"]["data"]
+        assert "smart_flexible_load_power_w" in content["options"]["step"]["smart_setup"]["data"]
 
 
 async def test_shared_manager_factory_loads_cache_once_without_network(monkeypatch):
@@ -399,7 +404,15 @@ async def test_options_flow_selector_defaults_and_cache_preview(monkeypatch, mod
         "homeassistant": {"config_entries": SimpleNamespace(ConfigFlow=BaseFlow, OptionsFlow=BaseFlow)},
         "homeassistant.const": {"CONF_NAME": "name"},
         "homeassistant.data_entry_flow": {"FlowResult": dict},
-        "homeassistant.helpers.selector": {"SelectSelector": lambda data: data, "SelectSelectorConfig": dict},
+        "homeassistant.helpers.selector": {
+                "EntitySelector": lambda data: data,
+                "EntitySelectorConfig": dict,
+                "NumberSelector": lambda data: data,
+                "NumberSelectorConfig": dict,
+                "NumberSelectorMode": SimpleNamespace(BOX="box"),
+                "SelectSelector": lambda data: data,
+                "SelectSelectorConfig": dict,
+            },
     }
     for name, attrs in modules.items():
         module = ModuleType(name)
@@ -424,6 +437,138 @@ async def test_options_flow_selector_defaults_and_cache_preview(monkeypatch, mod
     assert profiles["anwb_energie"].purchase_fee_import == (0.04 if mode == "automatic" else 0.018)
     assert not manager.enabled
     session.get.assert_not_called()
+
+
+
+def _load_config_flow_for_test(monkeypatch):
+    """Load config_flow with lightweight Home Assistant and voluptuous doubles."""
+    class BaseFlow:
+        def __init_subclass__(cls, **kwargs):
+            pass
+
+    class Optional:
+        def __init__(self, key, default=None):
+            self.key, self.default = key, default
+
+    modules = {
+        "voluptuous": {
+            "Schema": lambda data: data,
+            "Optional": Optional,
+            "In": lambda data: data,
+            "All": lambda *args: args,
+            "Coerce": lambda value: value,
+            "Range": lambda **kwargs: kwargs,
+        },
+        "homeassistant": {"config_entries": SimpleNamespace(ConfigFlow=BaseFlow, OptionsFlow=BaseFlow)},
+        "homeassistant.const": {"CONF_NAME": "name"},
+        "homeassistant.data_entry_flow": {"FlowResult": dict},
+        "homeassistant.helpers.selector": {
+            "EntitySelector": lambda data: data,
+            "EntitySelectorConfig": dict,
+            "NumberSelector": lambda data: data,
+            "NumberSelectorConfig": dict,
+            "NumberSelectorMode": SimpleNamespace(BOX="box"),
+            "SelectSelector": lambda data: data,
+            "SelectSelectorConfig": dict,
+        },
+    }
+    for name, attrs in modules.items():
+        module = ModuleType(name)
+        module.__dict__.update(attrs)
+        monkeypatch.setitem(sys.modules, name, module)
+    name = "custom_components.nl_day_ahead_prices._smart_flow_test"
+    spec = importlib.util.spec_from_file_location(name, ROOT / "custom_components/nl_day_ahead_prices/config_flow.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _smart_setup_flow(module, current=None):
+    """Build a lightweight options-flow instance for Smart Setup unit tests."""
+    flow = module.NLDayAheadPricesOptionsFlow()
+    flow._pending_options = dict(current or {})
+    flow.async_create_entry = lambda **kwargs: {"type": "create_entry", **kwargs}
+    flow.async_show_form = lambda **kwargs: {"type": "form", **kwargs}
+    return flow
+
+
+def test_smart_setup_validation_requires_positive_load_when_enabled(monkeypatch):
+    module = _load_config_flow_for_test(monkeypatch)
+    errors = module._validate_smart_setup({
+        "smart_setup_enabled": True,
+        "smart_flexible_load_power_w": 0,
+        "smart_electric_efficiency": 1.0,
+        "smart_gas_efficiency": 0.9,
+        "smart_gas_kwh_per_m3": 9.769,
+        "smart_solar_surplus_threshold_w": 500,
+    })
+    assert errors == {"smart_flexible_load_power_w": "positive_value_required"}
+
+
+def test_smart_setup_validation_accepts_complete_enabled_setup(monkeypatch):
+    module = _load_config_flow_for_test(monkeypatch)
+    assert module._validate_smart_setup({
+        "smart_setup_enabled": True,
+        "smart_flexible_load_power_w": 1500,
+        "smart_electric_efficiency": 1.0,
+        "smart_gas_efficiency": 0.9,
+        "smart_gas_kwh_per_m3": 9.769,
+        "smart_solar_surplus_threshold_w": 500,
+    }) == {}
+
+
+async def test_smart_setup_disabled_preserves_base_options_and_clears_smart_values(monkeypatch):
+    module = _load_config_flow_for_test(monkeypatch)
+    flow = _smart_setup_flow(module, {
+        "selected_supplier": "zonneplan",
+        "smart_setup_enabled": True,
+        "smart_grid_power_entity": "sensor.old_grid",
+        "smart_flexible_load_power_w": 1500,
+        "smart_advice_language": "nl",
+    })
+    result = await flow.async_step_smart_setup({"smart_setup_enabled": False})
+    assert result["type"] == "create_entry"
+    assert result["data"]["selected_supplier"] == "zonneplan"
+    assert result["data"]["smart_setup_enabled"] is False
+    assert "smart_grid_power_entity" not in result["data"]
+    assert "smart_flexible_load_power_w" not in result["data"]
+    assert "smart_advice_language" not in result["data"]
+
+
+async def test_smart_setup_enabled_saves_entities_load_efficiencies_and_language(monkeypatch):
+    module = _load_config_flow_for_test(monkeypatch)
+    flow = _smart_setup_flow(module, {"selected_supplier": "zonneplan"})
+    user_input = {
+        "smart_setup_enabled": True,
+        "smart_grid_power_entity": "sensor.p1_power",
+        "smart_solar_power_entity": "sensor.solar_power",
+        "smart_gas_price_entity": "sensor.gas_price",
+        "smart_flexible_load_name": "Boiler",
+        "smart_flexible_load_power_w": 1500,
+        "smart_electric_efficiency": 1.0,
+        "smart_gas_efficiency": 0.9,
+        "smart_gas_kwh_per_m3": 9.769,
+        "smart_solar_surplus_threshold_w": 500,
+        "smart_advice_language": "nl",
+    }
+    result = await flow.async_step_smart_setup(user_input)
+    assert result["type"] == "create_entry"
+    assert result["data"]["selected_supplier"] == "zonneplan"
+    for key, value in user_input.items():
+        assert result["data"][key] == value
+
+
+async def test_custom_supplier_smart_setup_preserves_custom_fields(monkeypatch):
+    module = _load_config_flow_for_test(monkeypatch)
+    flow = _smart_setup_flow(module, {
+        "selected_supplier": "custom",
+        "custom_supplier_name": "Mijn leverancier",
+        "custom_purchase_fee_electricity": 0.025,
+    })
+    result = await flow.async_step_smart_setup({"smart_setup_enabled": False})
+    assert result["data"]["selected_supplier"] == "custom"
+    assert result["data"]["custom_supplier_name"] == "Mijn leverancier"
+    assert result["data"]["custom_purchase_fee_electricity"] == 0.025
 
 
 async def test_pending_market_update_publishes_current_entry_mode(runtime, monkeypatch):

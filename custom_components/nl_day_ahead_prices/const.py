@@ -37,6 +37,19 @@ CONF_ALLOW_PEAK_RELAXATION = "allow_peak_period_relaxation"
 CONF_EXTENDED_ATTRIBUTES = "enable_extended_attributes"
 CONF_CHART_HELPERS = "enable_chart_helper_entities"
 
+# Smart Setup (v2.5)
+CONF_SMART_SETUP_ENABLED = "smart_setup_enabled"
+CONF_GRID_POWER_ENTITY = "smart_grid_power_entity"
+CONF_SOLAR_POWER_ENTITY = "smart_solar_power_entity"
+CONF_GAS_PRICE_ENTITY = "smart_gas_price_entity"
+CONF_FLEXIBLE_LOAD_NAME = "smart_flexible_load_name"
+CONF_FLEXIBLE_LOAD_POWER_W = "smart_flexible_load_power_w"
+CONF_ELECTRIC_EFFICIENCY = "smart_electric_efficiency"
+CONF_GAS_EFFICIENCY = "smart_gas_efficiency"
+CONF_GAS_KWH_PER_M3 = "smart_gas_kwh_per_m3"
+CONF_SOLAR_SURPLUS_THRESHOLD_W = "smart_solar_surplus_threshold_w"
+CONF_ADVICE_LANGUAGE = "smart_advice_language"
+
 DEFAULT_COUNTRY = "NL"
 DEFAULT_CURRENCY = "EUR"
 DEFAULT_PRIMARY_PROVIDER = "nord_pool"
@@ -70,6 +83,13 @@ DEFAULT_ALLOW_BEST_RELAXATION = True
 DEFAULT_ALLOW_PEAK_RELAXATION = True
 DEFAULT_EXTENDED_ATTRIBUTES = True
 DEFAULT_CHART_HELPERS = False
+DEFAULT_SMART_SETUP_ENABLED = False
+DEFAULT_FLEXIBLE_LOAD_NAME = "Flexible load"
+DEFAULT_ELECTRIC_EFFICIENCY = 1.0
+DEFAULT_GAS_EFFICIENCY = 0.90
+DEFAULT_GAS_KWH_PER_M3 = 9.769
+DEFAULT_SOLAR_SURPLUS_THRESHOLD_W = 500.0
+DEFAULT_ADVICE_LANGUAGE = "en"
 
 PROVIDER_NORD_POOL = "nord_pool"
 PROVIDER_ENERGY_CHARTS = "energy_charts"

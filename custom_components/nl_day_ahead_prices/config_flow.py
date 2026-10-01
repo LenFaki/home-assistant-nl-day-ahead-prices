@@ -9,9 +9,18 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.const import CONF_NAME
 from homeassistant.data_entry_flow import FlowResult
-from homeassistant.helpers.selector import SelectSelector, SelectSelectorConfig
+from homeassistant.helpers.selector import (
+    EntitySelector,
+    EntitySelectorConfig,
+    NumberSelector,
+    NumberSelectorConfig,
+    NumberSelectorMode,
+    SelectSelector,
+    SelectSelectorConfig,
+)
 
 from .const import (
+    CONF_ADVICE_LANGUAGE,
     CONF_COUNTRY,
     CONF_CURRENCY,
     CONF_CUSTOM_MONTHLY_FEE_ELECTRICITY,
@@ -20,15 +29,26 @@ from .const import (
     CONF_CUSTOM_SELL_FEE_ELECTRICITY,
     CONF_CUSTOM_SELL_FEE_INCLUDES_VAT,
     CONF_CUSTOM_SUPPLIER_NAME,
+    CONF_ELECTRIC_EFFICIENCY,
     CONF_ENABLE_ENTSOE,
     CONF_ENERGY_TAX,
     CONF_ENERGY_TAX_INCL_VAT,
     CONF_ENTSOE_API_TOKEN,
+    CONF_FLEXIBLE_LOAD_NAME,
+    CONF_FLEXIBLE_LOAD_POWER_W,
+    CONF_GAS_EFFICIENCY,
+    CONF_GAS_KWH_PER_M3,
+    CONF_GAS_PRICE_ENTITY,
+    CONF_GRID_POWER_ENTITY,
     CONF_PRICE_RESOLUTION,
     CONF_PRIMARY_PROVIDER,
     CONF_SELECTED_SUPPLIER,
+    CONF_SMART_SETUP_ENABLED,
+    CONF_SOLAR_POWER_ENTITY,
+    CONF_SOLAR_SURPLUS_THRESHOLD_W,
     CONF_SUPPLIER_TARIFF_UPDATES,
     CONF_VAT,
+    DEFAULT_ADVICE_LANGUAGE,
     DEFAULT_COUNTRY,
     DEFAULT_CURRENCY,
     DEFAULT_CUSTOM_MONTHLY_FEE_ELECTRICITY,
@@ -37,10 +57,16 @@ from .const import (
     DEFAULT_CUSTOM_SELL_FEE_ELECTRICITY,
     DEFAULT_CUSTOM_SELL_FEE_INCLUDES_VAT,
     DEFAULT_CUSTOM_SUPPLIER_NAME,
+    DEFAULT_ELECTRIC_EFFICIENCY,
     DEFAULT_ENERGY_TAX,
+    DEFAULT_FLEXIBLE_LOAD_NAME,
+    DEFAULT_GAS_EFFICIENCY,
+    DEFAULT_GAS_KWH_PER_M3,
     DEFAULT_PRICE_RESOLUTION,
     DEFAULT_PRIMARY_PROVIDER,
     DEFAULT_SELECTED_SUPPLIER,
+    DEFAULT_SMART_SETUP_ENABLED,
+    DEFAULT_SOLAR_SURPLUS_THRESHOLD_W,
     DEFAULT_VAT,
     DOMAIN,
     NAME,
@@ -116,7 +142,7 @@ class NLDayAheadPricesOptionsFlow(config_entries.OptionsFlow):
     async def async_step_supplier_summary(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """Show selected supplier profile details before saving."""
         if user_input is not None:
-            return self.async_create_entry(title="", data=self._pending_options)
+            return await self.async_step_smart_setup()
 
         profiles = await self._async_supplier_profiles(self._pending_options)
         selected = str(self._pending_options.get(CONF_SELECTED_SUPPLIER, DEFAULT_SELECTED_SUPPLIER))
@@ -152,9 +178,116 @@ class NLDayAheadPricesOptionsFlow(config_entries.OptionsFlow):
                     data_schema=self._custom_supplier_schema({**data, **user_input}),
                     errors=errors,
                 )
-            return self.async_create_entry(title="", data={**data, **user_input})
+            self._pending_options = {**data, **user_input}
+            return await self.async_step_smart_setup()
 
         return self.async_show_form(step_id="custom_supplier", data_schema=self._custom_supplier_schema(data))
+
+    async def async_step_smart_setup(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        """Configure optional Smart Energy defaults."""
+        data = self._pending_options or self._current_options()
+        if user_input is not None:
+            enabled = bool(user_input.get(CONF_SMART_SETUP_ENABLED, DEFAULT_SMART_SETUP_ENABLED))
+            if not enabled:
+                smart_keys = {
+                    CONF_GRID_POWER_ENTITY, CONF_SOLAR_POWER_ENTITY, CONF_GAS_PRICE_ENTITY,
+                    CONF_FLEXIBLE_LOAD_NAME, CONF_FLEXIBLE_LOAD_POWER_W, CONF_ELECTRIC_EFFICIENCY,
+                    CONF_GAS_EFFICIENCY, CONF_GAS_KWH_PER_M3, CONF_SOLAR_SURPLUS_THRESHOLD_W,
+                    CONF_ADVICE_LANGUAGE,
+                }
+                result = {key: value for key, value in data.items() if key not in smart_keys}
+                result[CONF_SMART_SETUP_ENABLED] = False
+                return self.async_create_entry(title="", data=result)
+            errors = _validate_smart_setup(user_input)
+            if errors:
+                return self.async_show_form(
+                    step_id="smart_setup",
+                    data_schema=self._smart_setup_schema({**data, **user_input}),
+                    errors=errors,
+                )
+            return self.async_create_entry(title="", data={**data, **user_input})
+
+        return self.async_show_form(step_id="smart_setup", data_schema=self._smart_setup_schema(data))
+
+    def _smart_setup_schema(self, data: dict[str, Any]) -> vol.Schema:
+        """Return optional Smart Energy setup schema."""
+        power_entity = EntitySelector(EntitySelectorConfig(domain="sensor", device_class="power"))
+        schema: dict[Any, Any] = {
+            vol.Optional(
+                CONF_SMART_SETUP_ENABLED,
+                default=data.get(CONF_SMART_SETUP_ENABLED, DEFAULT_SMART_SETUP_ENABLED),
+            ): bool,
+            vol.Optional(
+                CONF_FLEXIBLE_LOAD_NAME,
+                default=data.get(CONF_FLEXIBLE_LOAD_NAME, DEFAULT_FLEXIBLE_LOAD_NAME),
+            ): str,
+            vol.Optional(
+                CONF_ELECTRIC_EFFICIENCY,
+                default=data.get(CONF_ELECTRIC_EFFICIENCY, DEFAULT_ELECTRIC_EFFICIENCY),
+            ): NumberSelector(
+                NumberSelectorConfig(min=0.01, max=5, step=0.01, mode=NumberSelectorMode.BOX)
+            ),
+            vol.Optional(
+                CONF_GAS_EFFICIENCY,
+                default=data.get(CONF_GAS_EFFICIENCY, DEFAULT_GAS_EFFICIENCY),
+            ): NumberSelector(
+                NumberSelectorConfig(min=0.01, max=1, step=0.01, mode=NumberSelectorMode.BOX)
+            ),
+            vol.Optional(
+                CONF_GAS_KWH_PER_M3,
+                default=data.get(CONF_GAS_KWH_PER_M3, DEFAULT_GAS_KWH_PER_M3),
+            ): NumberSelector(
+                NumberSelectorConfig(
+                    min=0.01,
+                    max=20,
+                    step=0.001,
+                    unit_of_measurement="kWh/m³",
+                    mode=NumberSelectorMode.BOX,
+                )
+            ),
+            vol.Optional(
+                CONF_SOLAR_SURPLUS_THRESHOLD_W,
+                default=data.get(CONF_SOLAR_SURPLUS_THRESHOLD_W, DEFAULT_SOLAR_SURPLUS_THRESHOLD_W),
+            ): NumberSelector(
+                NumberSelectorConfig(
+                    min=0,
+                    max=50000,
+                    step=1,
+                    unit_of_measurement="W",
+                    mode=NumberSelectorMode.BOX,
+                )
+            ),
+            vol.Optional(
+                CONF_ADVICE_LANGUAGE,
+                default=data.get(CONF_ADVICE_LANGUAGE, DEFAULT_ADVICE_LANGUAGE),
+            ): SelectSelector(SelectSelectorConfig(options=["en", "nl"])),
+        }
+
+        optional_selectors = (
+            (CONF_GRID_POWER_ENTITY, power_entity),
+            (CONF_SOLAR_POWER_ENTITY, power_entity),
+            (
+                CONF_GAS_PRICE_ENTITY,
+                EntitySelector(EntitySelectorConfig(domain="sensor")),
+            ),
+            (
+                CONF_FLEXIBLE_LOAD_POWER_W,
+                NumberSelector(
+                    NumberSelectorConfig(
+                        min=1,
+                        max=50000,
+                        step=1,
+                        unit_of_measurement="W",
+                        mode=NumberSelectorMode.BOX,
+                    )
+                ),
+            ),
+        )
+        for key, selector in optional_selectors:
+            marker = vol.Optional(key, default=data[key]) if key in data else vol.Optional(key)
+            schema[marker] = selector
+
+        return vol.Schema(schema)
 
     def _current_options(self) -> dict[str, Any]:
         """Return merged config entry data and options."""
@@ -280,3 +413,21 @@ def _float_option(user_input: dict[str, Any], key: str, default: float) -> float
         return float(user_input.get(key, default))
     except (TypeError, ValueError):
         return None
+
+
+def _validate_smart_setup(user_input: dict[str, Any]) -> dict[str, str]:
+    """Validate Smart Setup values without treating missing entities as zero."""
+    errors: dict[str, str] = {}
+    if not user_input.get(CONF_SMART_SETUP_ENABLED, False):
+        return errors
+    load = _float_option(user_input, CONF_FLEXIBLE_LOAD_POWER_W, 0)
+    if load is None or load <= 0:
+        errors[CONF_FLEXIBLE_LOAD_POWER_W] = "positive_value_required"
+    for key in (CONF_ELECTRIC_EFFICIENCY, CONF_GAS_EFFICIENCY, CONF_GAS_KWH_PER_M3):
+        value = _float_option(user_input, key, 0)
+        if value is None or value <= 0:
+            errors[key] = "positive_value_required"
+    threshold = _float_option(user_input, CONF_SOLAR_SURPLUS_THRESHOLD_W, DEFAULT_SOLAR_SURPLUS_THRESHOLD_W)
+    if threshold is None or threshold < 0:
+        errors[CONF_SOLAR_SURPLUS_THRESHOLD_W] = "negative_value"
+    return errors
