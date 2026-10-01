@@ -34,7 +34,7 @@
           "supplier_markup_excl_vat": "Leveranciersopslag exclusief btw",
           "vat": "BTW"
         },
-        "options": {
+        "menu_options": {
           "price_resolution": {
             "auto": "Automatisch op basis van leverancier",
             "hourly": "Uurprijzen",
