@@ -281,6 +281,66 @@ def test_dashboard_yaml_accepts_resolved_entity_ids() -> None:
     assert "sensor.meterkast_current_all_in_price" in generated
     assert "states('sensor.meterkast_price_advisor')" in generated
 
+def test_energy_advisor_dashboard_uses_smart_setup_values() -> None:
+    generated = generate_dashboard_yaml(
+        "energy_advisor",
+        entity_ids={
+            "current_all_in_price": "sensor.entry_current_all_in",
+            "price_advisor": "sensor.entry_price_advisor",
+        },
+        smart_setup={
+            "enabled": True,
+            "grid_power_entity": "sensor.p1_power",
+            "solar_power_entity": "sensor.solar_power",
+            "gas_price_entity": "sensor.gas_price",
+            "flexible_load_name": "Boiler",
+            "flexible_load_power_w": 1500,
+            "electric_efficiency": 1.0,
+            "gas_efficiency": 0.9,
+            "gas_kwh_per_m3": 9.769,
+        },
+    )
+    assert "heading: Smart Energy" in generated
+    assert "sensor.entry_current_all_in" in generated
+    assert "sensor.p1_power" in generated
+    assert "sensor.solar_power" in generated
+    assert "sensor.gas_price" in generated
+    assert "Boiler" in generated
+    assert "1500.0" in generated
+    assert "Gemeten overschot" in generated
+    assert "Dekking overschot" in generated
+    assert "minutes_until_better" in generated
+    assert "geen gemeten netto-overschot" in generated
+    assert "gemiste terugleververgoeding" in generated
+
+
+def test_energy_advisor_dashboard_is_resilient_without_optional_sources() -> None:
+    generated = generate_dashboard_yaml(
+        "energy_advisor",
+        smart_setup={
+            "enabled": True,
+            "flexible_load_name": "Flexible load",
+            "electric_efficiency": 1.0,
+            "gas_efficiency": 0.9,
+            "gas_kwh_per_m3": 9.769,
+        },
+    )
+    assert "{% set grid = none %}" in generated
+    assert "{% set solar = none %}" in generated
+    assert "{% set gas = none %}" in generated
+    assert "{% set load = none %}" in generated
+    assert "niet beschikbaar" in generated
+
+
+def test_energy_advisor_dashboard_omits_smart_block_when_setup_disabled() -> None:
+    generated = generate_dashboard_yaml(
+        "energy_advisor",
+        smart_setup={"enabled": False},
+    )
+    assert "heading: Smart Energy" not in generated
+    assert "EnerPrice Advisor" in generated
+
+
 def test_compact_dashboard_uses_native_advisor_blocks_without_chart() -> None:
     generated = generate_dashboard_yaml("compact")
     assert "type: tile" in generated
