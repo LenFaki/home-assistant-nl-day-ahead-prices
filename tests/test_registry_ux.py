@@ -571,6 +571,142 @@ async def test_custom_supplier_smart_setup_preserves_custom_fields(monkeypatch):
     assert result["data"]["custom_purchase_fee_electricity"] == 0.025
 
 
+
+def _load_services_v2_for_smart_defaults(monkeypatch):
+    """Load services_v2 with lightweight Home Assistant service doubles."""
+    modules = {
+        "voluptuous": {
+            "Schema": lambda data: data,
+            "Optional": lambda key, **kwargs: key,
+            "Required": lambda key, **kwargs: key,
+            "All": lambda *args: args,
+            "Coerce": lambda value: value,
+            "Range": lambda **kwargs: kwargs,
+            "In": lambda values: values,
+        },
+        "homeassistant.core": {
+            "HomeAssistant": object,
+            "ServiceCall": object,
+            "SupportsResponse": SimpleNamespace(ONLY="only"),
+        },
+        "homeassistant.helpers": {"config_validation": SimpleNamespace(
+            datetime=object(), boolean=object(), string=object(), entity_id=object(), service=object()
+        )},
+        "homeassistant.helpers.entity_registry": {
+            "async_get": Mock(),
+            "async_entries_for_config_entry": Mock(return_value=[]),
+        },
+        "homeassistant.util": {"dt": SimpleNamespace(now=lambda: NOW)},
+    }
+    sensor_stub = ModuleType("custom_components.nl_day_ahead_prices.sensor")
+    sensor_stub._energy_tax = Mock()
+    sensor_stub._selected_supplier_profile = Mock()
+    sensor_stub._vat = Mock()
+    monkeypatch.setitem(sys.modules, "custom_components.nl_day_ahead_prices.sensor", sensor_stub)
+    for name, attrs in modules.items():
+        module = ModuleType(name)
+        module.__dict__.update(attrs)
+        monkeypatch.setitem(sys.modules, name, module)
+    name = "custom_components.nl_day_ahead_prices._services_v2_smart_defaults_test"
+    spec = importlib.util.spec_from_file_location(
+        name, ROOT / "custom_components/nl_day_ahead_prices/services_v2.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_smart_service_defaults_use_enabled_stored_setup(monkeypatch):
+    module = _load_services_v2_for_smart_defaults(monkeypatch)
+    entry = SimpleNamespace(
+        data={"selected_supplier": "zonneplan"},
+        options={
+            "smart_setup_enabled": True,
+            "smart_grid_power_entity": "sensor.p1",
+            "smart_solar_power_entity": "sensor.solar",
+            "smart_gas_price_entity": "sensor.gas",
+            "smart_flexible_load_power_w": 1500,
+            "smart_electric_efficiency": 0.98,
+            "smart_gas_efficiency": 0.91,
+            "smart_gas_kwh_per_m3": 9.8,
+            "smart_solar_surplus_threshold_w": 700,
+            "smart_advice_language": "nl",
+        },
+    )
+    assert module._smart_setup_defaults(entry) == {
+        "grid_power_entity": "sensor.p1",
+        "solar_power_entity": "sensor.solar",
+        "gas_price_entity": "sensor.gas",
+        "flexible_load_power_w": 1500,
+        "electric_efficiency": 0.98,
+        "gas_efficiency": 0.91,
+        "gas_kwh_per_m3": 9.8,
+        "solar_surplus_threshold_w": 700,
+        "language": "nl",
+    }
+
+
+def test_smart_service_defaults_disabled_preserves_legacy_behavior(monkeypatch):
+    module = _load_services_v2_for_smart_defaults(monkeypatch)
+    entry = SimpleNamespace(
+        data={},
+        options={
+            "smart_setup_enabled": False,
+            "smart_grid_power_entity": "sensor.should_not_be_used",
+            "smart_flexible_load_power_w": 1500,
+        },
+    )
+    assert module._smart_setup_defaults(entry) == {}
+
+
+def test_smart_service_defaults_options_override_config_data(monkeypatch):
+    module = _load_services_v2_for_smart_defaults(monkeypatch)
+    entry = SimpleNamespace(
+        data={
+            "smart_setup_enabled": True,
+            "smart_grid_power_entity": "sensor.old_grid",
+            "smart_advice_language": "en",
+        },
+        options={
+            "smart_grid_power_entity": "sensor.new_grid",
+            "smart_advice_language": "nl",
+        },
+    )
+    defaults = module._smart_setup_defaults(entry)
+    assert defaults["grid_power_entity"] == "sensor.new_grid"
+    assert defaults["language"] == "nl"
+
+
+def test_unavailable_smart_setup_sensor_is_none_not_zero(monkeypatch):
+    module = _load_services_v2_for_smart_defaults(monkeypatch)
+    hass = SimpleNamespace(
+        states=SimpleNamespace(
+            get=lambda entity_id: SimpleNamespace(state="unavailable")
+        )
+    )
+    assert module._state_float(hass, "sensor.p1") is None
+    assert module._state_float(hass, None) is None
+
+
+def test_explicit_smart_service_values_override_stored_defaults(monkeypatch):
+    _load_services_v2_for_smart_defaults(monkeypatch)
+    stored = {
+        "grid_power_entity": "sensor.stored_grid",
+        "electric_efficiency": 0.95,
+        "language": "nl",
+    }
+    explicit = {"electric_efficiency": 1.2, "language": "en"}
+    resolved_grid_entity = explicit.pop("grid_power_entity", stored.get("grid_power_entity"))
+    for key in ("gas_price_entity", "solar_power_entity", "grid_power_entity"):
+        stored.pop(key, None)
+    for key, value in stored.items():
+        explicit.setdefault(key, value)
+    assert resolved_grid_entity == "sensor.stored_grid"
+    assert explicit["electric_efficiency"] == 1.2
+    assert explicit["language"] == "en"
+    assert "grid_power_entity" not in explicit
+
+
 async def test_pending_market_update_publishes_current_entry_mode(runtime, monkeypatch):
     from custom_components.nl_day_ahead_prices.models import ProviderResult
 

@@ -16,7 +16,11 @@ all-in tarieven, prijsanalyses, beste periodes, trends, prognoses en praktisch
 energieadvies. De standaard biedzone is `NL`, de valuta is `EUR` en prijzen
 worden als `EUR/kWh` aangeboden.
 
-## EnerPrice v2.4 — Smart Energy Advisor
+## EnerPrice v2.5 — Smart Setup en Smart Energy Advisor
+
+V2.5 voegt een optionele **Smart Setup** toe aan de bestaande Smart Energy Advisor. Via de EnerPrice-opties kun je de P1/netvermogenssensor, actuele zonneproductie, gasprijssensor, één flexibele verbruiker met vermogen, rendementen, gasinhoud, overschotdrempel en adviestaal opslaan. De adviseur gebruikt deze waarden daarna automatisch. Expliciete waarden in een servicecall hebben altijd voorrang. Voor bestaande installaties blijft Smart Setup standaard uitgeschakeld, zodat v2.4.x-gedrag behouden blijft.
+
+De Smart Energy Advisor
 
 V2.4 voegt een leverancier- en apparaatonafhankelijke **Smart Energy Advisor**
 toe. De actie `nl_day_ahead_prices.get_smart_energy_advice` combineert de
@@ -71,7 +75,9 @@ response_variable: energy_advice
 ```
 
 Positief netvermogen wordt behandeld als afname en negatief netvermogen als
-teruglevering. Wanneer een netvermogensensor beschikbaar is, gebruikt EnerPrice de werkelijk gemeten teruglevering als zonne-overschot. Zonneproductie en zonne-overschot blijven afzonderlijke begrippen. Alleen zonder netmeting wordt de zonneproductie zelf tegen de ingestelde drempel getoetst.
+teruglevering. Wanneer een netvermogensensor beschikbaar is, gebruikt EnerPrice de werkelijk gemeten teruglevering als overschot. Zonneproductie en gemeten overschot blijven afzonderlijke begrippen. Zonder netmeting kan actuele zonneproductie als expliciete fallback worden gebruikt; `surplus_source` maakt zichtbaar of het om `measured_grid_export`, `solar_production_fallback` of `unknown` gaat. Ontbrekende of niet-beschikbare sensoren worden niet als nul geïnterpreteerd.
+
+Bij gedeeltelijk overschot gebruikt `effective_electric_heat_cost_per_kwh` het kostenmodel `purchased_energy_only`: alleen het resterende netaandeel krijgt de actuele all-in inkoopprijs. Mogelijke gemiste terugleververgoeding van zelf gebruikte energie wordt niet meegerekend; dit is dus geen volledige economische kostenberekening.
 Voor testen kunnen ook directe numerieke waarden worden meegegeven in plaats
 van entiteiten.
 
@@ -367,8 +373,7 @@ Voor direct bruikbare Home Assistant-kaarten, Smart Energy Advisor-voorbeelden, 
 EnerPrice heeft geen cloudaccount nodig voor de integratie zelf. Marktprijzen
 worden opgehaald bij de geconfigureerde prijsproviders. In automatische
 tariefmodus kan het gevalideerde EnerPrice-tarievenregister worden opgehaald.
-Smart Energy Advisor leest alleen de Home Assistant-entiteiten die je zelf aan
-de service meegeeft en stuurt geen apparaat rechtstreeks aan.
+Smart Energy Advisor leest alleen de Home Assistant-entiteiten die je zelf via de service of Smart Setup selecteert en stuurt geen apparaat rechtstreeks aan.
 
 ## Bijdragen en releases
 
