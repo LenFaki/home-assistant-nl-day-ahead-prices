@@ -11,7 +11,7 @@ from typing import Any
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorEntityDescription, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory, UnitOfEnergy
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -758,7 +758,9 @@ class NLSmartEnergyAdvisorSensor(CoordinatorEntity[NLDayAheadPricesCoordinator],
         if entity_ids:
             self.async_on_remove(async_track_state_change_event(self.hass, entity_ids, self._async_input_changed))
 
+    @callback
     def _async_input_changed(self, event: Any) -> None:
+        """Refresh advice safely on the Home Assistant event loop."""
         self.async_write_ha_state()
 
     def _advice(self) -> dict[str, Any]:
