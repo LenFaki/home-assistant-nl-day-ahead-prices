@@ -80,6 +80,12 @@ data:
 
 Kopieer de teruggegeven YAML naar een Home Assistant-dashboard. Ook `compact` en `full` zijn beschikbaar.
 
+Vanaf fase 4 is de generator **configuratiebewust**. EnerPrice gebruikt de echte entity-ID's van de gekozen config entry in plaats van vaste namen. Als Smart Setup actief is, voegt het dashboard alleen de beschikbare context toe: P1/netvermogen, zonneproductie en/of gasprijs. De ingestelde flexibele verbruiker en het vermogen worden eveneens getoond. Ontbrekende onderdelen worden niet als lege kaarten weergegeven.
+
+Bij meerdere EnerPrice-configuraties geef je `config_entry_id` mee. Met `language: auto` volgt het gegenereerde dashboard de taal van Home Assistant; `nl` en `en` kunnen ook expliciet worden gekozen. Met `include_smart_energy: false` kun je het Smart Energy-blok bewust weglaten.
+
+De generator maakt uitsluitend dashboard-YAML en schakelt geen apparaten. De Smart Energy Advisor blijft in deze fase adviserend; apparaatbesturing hoort bewust niet bij de dashboardgenerator.
+
 ## 5. Veilig automatiseren
 
 Behandel de Smart Energy Advisor als advies en voeg eigen veiligheidsvoorwaarden toe voordat een echt apparaat wordt geschakeld. Behoud bij tapwater altijd de eigen thermostaat, legionella-/hygiënecyclus, maximale temperatuur, minimale draaitijd en beveiligingen van de fabrikant. Een niet-beschikbare sensor mag nooit als toestemming om in te schakelen worden geïnterpreteerd.
