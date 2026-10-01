@@ -161,6 +161,9 @@ generate_dashboard_yaml:
     include_price_advisor:
       default: true
       selector: {boolean: {}}
+    include_price_chart:
+      default: true
+      selector: {boolean: {}}
     include_ev_planner:
       default: false
       selector: {boolean: {}}
