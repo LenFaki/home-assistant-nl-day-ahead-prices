@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.5.3 - 2026-10-01
+
+### Improved
+- Add official HACS repository validation and Home Assistant Hassfest validation workflows.
+- Add an MIT license and repository validation badges.
+- Align HACS metadata and Home Assistant selector translations with current validator requirements.
+- Clarify in the English and Dutch installation documentation that EnerPrice remains a custom HACS repository until the default-repository submission is accepted.
+
+### Compatibility
+- No runtime behavior, entity IDs, services or Smart Energy configuration are intentionally changed from v2.5.2.
+- EnerPrice remains advisory and does not automatically switch connected devices.
+
 ## 2.5.2 - 2026-10-01
 
 ### Fixed
