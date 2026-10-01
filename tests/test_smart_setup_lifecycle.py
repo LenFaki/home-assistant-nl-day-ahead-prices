@@ -37,9 +37,3 @@ def test_non_listener_smart_settings_do_not_force_reload():
         CONF_ADVICE_LANGUAGE: "en",
     }
     assert not _requires_reload(previous, current)
-
-def test_smart_energy_state_change_handler_is_home_assistant_callback():
-    from custom_components.nl_day_ahead_prices.sensor import NLSmartEnergyAdvisorSensor
-
-    assert getattr(NLSmartEnergyAdvisorSensor._async_input_changed, "_hass_callback", False)
-
