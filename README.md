@@ -12,6 +12,9 @@
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-Custom%20Integration-18BCF2?logo=homeassistant&logoColor=white&style=flat-square)](https://www.home-assistant.io/)
 [![Open your Home Assistant instance and open this repository inside HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=LenFaki&repository=home-assistant-nl-day-ahead-prices&category=integration)
 [![Tests](https://github.com/LenFaki/home-assistant-nl-day-ahead-prices/actions/workflows/ci.yml/badge.svg)](https://github.com/LenFaki/home-assistant-nl-day-ahead-prices/actions/workflows/ci.yml)
+[![HACS validation](https://github.com/LenFaki/home-assistant-nl-day-ahead-prices/actions/workflows/hacs.yml/badge.svg)](https://github.com/LenFaki/home-assistant-nl-day-ahead-prices/actions/workflows/hacs.yml)
+[![Hassfest](https://github.com/LenFaki/home-assistant-nl-day-ahead-prices/actions/workflows/hassfest.yml/badge.svg)](https://github.com/LenFaki/home-assistant-nl-day-ahead-prices/actions/workflows/hassfest.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-Support%20EnerPrice-FF5E5B?style=flat-square&logo=ko-fi&logoColor=white)](https://ko-fi.com/lenfaki)
 
 EnerPrice is a HACS-compatible Home Assistant custom integration for Dutch
@@ -204,6 +207,10 @@ after successful main CI, version-bump requirements and manual recovery.
 ## Installation
 
 ### HACS
+
+EnerPrice is currently installable as a HACS custom repository. Official HACS
+default-repository inclusion is being prepared; until that submission is
+accepted, add the repository manually as described below.
 
 1. Add this repository as a custom repository in HACS.
 2. Select category `Integration`.
