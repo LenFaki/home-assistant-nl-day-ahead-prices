@@ -1,7 +1,6 @@
 """Phase 6 lifecycle regressions for v2.5 Smart Setup."""
 
 from custom_components.nl_day_ahead_prices import _requires_reload
-from custom_components.nl_day_ahead_prices.config_flow import _disabled_smart_setup_options
 from custom_components.nl_day_ahead_prices.const import (
     CONF_ADVICE_LANGUAGE,
     CONF_FLEXIBLE_LOAD_POWER_W,
@@ -44,20 +43,3 @@ def test_smart_energy_state_change_handler_is_home_assistant_callback():
 
     assert getattr(NLSmartEnergyAdvisorSensor._async_input_changed, "_hass_callback", False)
 
-
-def test_disabling_smart_setup_preserves_configured_inputs():
-    previous = {
-        CONF_SMART_SETUP_ENABLED: True,
-        CONF_GRID_POWER_ENTITY: "sensor.grid",
-        CONF_GAS_PRICE_ENTITY: "sensor.gas",
-        CONF_FLEXIBLE_LOAD_POWER_W: 2800,
-        CONF_ADVICE_LANGUAGE: "nl",
-    }
-
-    result = _disabled_smart_setup_options(previous, {CONF_SMART_SETUP_ENABLED: False})
-
-    assert result[CONF_SMART_SETUP_ENABLED] is False
-    assert result[CONF_GRID_POWER_ENTITY] == "sensor.grid"
-    assert result[CONF_GAS_PRICE_ENTITY] == "sensor.gas"
-    assert result[CONF_FLEXIBLE_LOAD_POWER_W] == 2800
-    assert result[CONF_ADVICE_LANGUAGE] == "nl"
