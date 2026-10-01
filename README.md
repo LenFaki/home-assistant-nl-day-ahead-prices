@@ -40,7 +40,11 @@ It is inspired by the sensor and ApexCharts attribute shape of `hass-entso-e`, b
 
 The default bidding zone is `NL`, currency is `EUR`, and all sensor prices are exposed as `EUR/kWh`. Provider prices in `EUR/MWh` are converted automatically.
 
-## EnerPrice v2.4 — Smart Energy Advisor
+## EnerPrice v2.5 — Smart Setup and Smart Energy Advisor
+
+V2.5 adds optional **Smart Setup** to the existing Smart Energy Advisor. In the EnerPrice options you can store the grid/P1 entity, actual solar-production entity, gas-price entity, one flexible load and its power, efficiencies, gas energy content, surplus threshold and advice language. The advisor then uses these values automatically. Explicit service-call values always take precedence. Smart Setup remains disabled by default for existing installations, preserving v2.4.x behavior.
+
+The Smart Energy Advisor
 
 V2.4 adds a vendor-neutral Smart Energy Advisor for flexible loads and domestic
 hot water. The new response service
@@ -60,6 +64,10 @@ The advisor can return `solar_surplus`, `cheap_grid`, `gas`, `wait` or
 so a flexible hot-water load can be advised to wait when a materially cheaper
 electric interval is approaching. Direct numeric values can be supplied instead
 of Home Assistant entities for testing and automations.
+
+When grid/P1 power is available, measured export is used as the surplus source. Without grid data, actual solar production may be used only as an explicit fallback; the response identifies `surplus_source` as `measured_grid_export`, `solar_production_fallback` or `unknown`. Missing and unavailable inputs are not silently treated as zero.
+
+For partial surplus, `effective_electric_heat_cost_per_kwh` uses the `purchased_energy_only` model: only the remaining grid share is charged at the current all-in purchase price. Lost feed-in value/opportunity cost of self-consumed energy is not included, so this is not a complete economic cost model.
 
 EnerPrice remains advisory: it does **not** switch a boiler, heat source or
 other appliance directly. Home Assistant automations can use the response to
