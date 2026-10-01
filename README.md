@@ -683,3 +683,11 @@ Main differences:
 - The old template-based cost modifier is replaced by explicit all-in price options for Dutch tax, supplier profiles, and VAT.
 
 After installing, update automations and ApexCharts cards to point at the new entity IDs while keeping the same `attributes.prices` data generator pattern.
+
+## V2.5 Smart Setup quick validation
+
+After enabling **Smart Setup**, EnerPrice creates a persistent **Smart Energy Advisor** sensor. It refreshes with EnerPrice price updates and when configured grid/P1, solar-production or gas-price entities change. The generated Smart Energy dashboard uses the actual Entity Registry ID for this sensor.
+
+Before relying on the advice, verify the configured inputs in Home Assistant: grid power is in W with positive = import and negative = export, solar production is in W, and gas price is in EUR/m³. Missing or unavailable inputs remain unknown rather than being treated as zero. Smart Setup supports one flexible load in v2.5 and remains advisory only; EnerPrice does not switch the load.
+
+For a practical verification sequence and dashboard examples, see [Dashboard recipes](docs/dashboard-recipes.md).
