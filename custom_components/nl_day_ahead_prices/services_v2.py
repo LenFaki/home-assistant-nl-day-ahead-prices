@@ -177,6 +177,8 @@ def async_register_v2_services(hass: HomeAssistant) -> None:
                 solar_power = _state_float(hass, solar_entity)
             if grid_power is None:
                 grid_power = _state_float(hass, grid_entity)
+            for key in ("gas_price_entity", "solar_power_entity", "grid_power_entity"):
+                stored.pop(key, None)
             for key, value in stored.items():
                 data.setdefault(key, value)
             result = build_smart_energy_advice(
