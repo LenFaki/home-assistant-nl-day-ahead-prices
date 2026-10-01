@@ -273,6 +273,7 @@ def _dashboard_entity_ids(hass: HomeAssistant, config_entry_id: str) -> dict[str
             "next_best_price_period_start",
             "selected_supplier",
             "current_provider",
+            "smart_energy_advisor",
         ):
             if entity.unique_id.endswith(f"_{key}"):
                 by_unique_suffix[key] = entity.entity_id
