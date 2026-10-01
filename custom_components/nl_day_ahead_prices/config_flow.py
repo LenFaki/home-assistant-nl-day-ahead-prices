@@ -191,7 +191,9 @@ class NLDayAheadPricesOptionsFlow(config_entries.OptionsFlow):
             if not enabled:
                 # Disabling Smart Setup must not erase the user's device selections,
                 # efficiencies or language. This makes the toggle reversible.
-                return self.async_create_entry(\n                    title="", data=_disabled_smart_setup_options(data, user_input)\n                )
+                return self.async_create_entry(
+                    title="", data=_disabled_smart_setup_options(data, user_input)
+                )
             errors = _validate_smart_setup(user_input)
             if errors:
                 return self.async_show_form(
