@@ -24,7 +24,13 @@ name: Price advice
 
 The Price Advisor is the quick price-only recommendation. It does not require gas, solar or P1 entities.
 
-## 3. Smart hot-water advice
+## 3. Smart Setup and smart hot-water advice
+
+Starting with v2.5, **Smart Setup** can optionally be enabled in the EnerPrice options. It stores the grid/P1 entity, actual solar-production entity, gas-price entity, one flexible-load name and power, efficiencies, gas energy content, surplus threshold and advice language. Smart Energy Advisor then uses these values automatically instead of requiring the same entity IDs and settings on every call.
+
+Smart Setup is optional and remains disabled by default for existing installations. Existing v2.4.x calls keep working. Values explicitly supplied in a service call always take precedence over stored Smart Setup values.
+
+The Smart Energy Advisor is a response action.
 
 The Smart Energy Advisor is a response action. A practical setup uses:
 - an EnerPrice config entry with current all-in prices;
@@ -32,7 +38,9 @@ The Smart Energy Advisor is a response action. A practical setup uses:
 - a grid/P1 power entity in W (recommended);
 - optionally the electrical demand of the flexible load in W.
 
-Grid power must use **positive = import** and **negative = export**. Unknown or unavailable values are not treated as zero.
+Grid power must use **positive = import** and **negative = export**. Unknown, unavailable and missing values are not treated as zero.
+
+When grid/P1 power is available, measured export is the surplus source. If grid power is missing but actual solar production is available, EnerPrice uses production only as an explicit fallback (`surplus_source: solar_production_fallback`). This is **not measured net surplus**, because household consumption is unknown. Without either source, `surplus_source` remains `unknown`.
 
 Example action:
 
@@ -51,7 +59,9 @@ data:
 
 With `flexible_load_power_w`, EnerPrice distinguishes full surplus from partial surplus. For a 1500 W load, 500 W export is 33.3% coverage rather than enough surplus to run fully on exported energy. The remaining grid share is included in the effective electric heat cost.
 
-Useful response fields include `state`, `recommendation`, `cheapest_now`, `electric_heat_cost_per_kwh`, `effective_electric_heat_cost_per_kwh`, `gas_heat_cost_per_kwh`, `measured_solar_surplus_w`, `partial_surplus`, `surplus_coverage_percent`, `required_surplus_w`, `next_better_time` and `minutes_until_better`.
+Useful response fields include `state`, `recommendation`, `cheapest_now`, `electric_heat_cost_per_kwh`, `effective_electric_heat_cost_per_kwh`, `gas_heat_cost_per_kwh`, `measured_solar_surplus_w`, `surplus_source`, `partial_surplus`, `surplus_coverage_percent`, `required_surplus_w`, `cost_model`, `next_better_time` and `minutes_until_better`.
+
+In v2.5, `effective_electric_heat_cost_per_kwh` uses the `purchased_energy_only` model: available surplus is assigned no additional purchase cost and only the remaining grid share is priced at the current all-in tariff. This is **not a complete economic cost model**; possible lost feed-in value/opportunity cost of self-consumed energy is not included.
 
 ## 4. Generate an EnerPrice dashboard
 
@@ -78,9 +88,11 @@ Treat Smart Energy Advisor output as advice and add your own safety conditions b
 
 1. Install and configure EnerPrice.
 2. Verify **Current All-in Price** has a plausible value.
-3. Find the grid/P1 entity and verify its sign convention.
-4. Add a gas-price entity if heat-source comparison is wanted.
-5. Enter the flexible load's real electrical demand when known.
-6. Test the Smart Energy Advisor manually in Developer Tools > Actions.
-7. Generate/copy a dashboard recipe.
-8. Only then build device-control automations with explicit safety conditions.
+3. Open the EnerPrice options and optionally enable **Smart Setup**.
+4. Select the grid/P1 entity and verify its sign convention.
+5. Add a gas-price entity if heat-source comparison is wanted.
+6. Select actual solar production when additional context/fallback is wanted.
+7. Enter the flexible load's real electrical demand when known.
+8. Test Smart Energy Advisor manually in Developer Tools > Actions; with Smart Setup, stored defaults no longer need to be repeated in `data:`.
+9. Generate/copy a dashboard recipe.
+10. Only then build device-control automations with explicit safety conditions.
