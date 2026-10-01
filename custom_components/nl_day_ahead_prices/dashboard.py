@@ -15,6 +15,7 @@ def generate_dashboard_yaml(
     include_battery_strategy: bool = False,
     theme: str = "auto",
     entity_ids: dict[str, str] | None = None,
+    smart_setup: dict[str, object] | None = None,
 ) -> str:
     """Generate a CasaRegie-inspired EnerPrice Sections dashboard."""
     theme_line = "" if theme == "auto" else f"theme: {theme}\\n"
@@ -31,6 +32,7 @@ def generate_dashboard_yaml(
         "current_provider": "sensor.nl_day_ahead_prices_current_provider",
     }
     ids.update(entity_ids or {})
+    smart = smart_setup or {}
 
     advisor = ""
     if include_price_advisor:
@@ -60,6 +62,96 @@ def generate_dashboard_yaml(
             name: Prijsscore
 """
 
+    smart_energy = ""
+    if dashboard_type == "energy_advisor" and smart.get("enabled"):
+        grid_entity = smart.get("grid_power_entity")
+        solar_entity = smart.get("solar_power_entity")
+        gas_entity = smart.get("gas_price_entity")
+        load_name = str(smart.get("flexible_load_name") or "Flexible load")
+        load_power = smart.get("flexible_load_power_w")
+        electric_efficiency = smart.get("electric_efficiency", 1.0)
+        gas_efficiency = smart.get("gas_efficiency", 0.90)
+        gas_kwh = smart.get("gas_kwh_per_m3", 9.769)
+
+        grid_expr = (
+            f"states('{grid_entity}') | float(none)"
+            if grid_entity
+            else "none"
+        )
+        solar_expr = (
+            f"states('{solar_entity}') | float(none)"
+            if solar_entity
+            else "none"
+        )
+        gas_expr = (
+            f"states('{gas_entity}') | float(none)"
+            if gas_entity
+            else "none"
+        )
+        load_expr = str(float(load_power)) if load_power is not None else "none"
+        smart_energy = f"""
+      - type: grid
+        cards:
+          - type: heading
+            heading: Smart Energy
+            icon: mdi:home-lightning-bolt
+          - type: markdown
+            title: {load_name}
+            content: |-
+              {{% set price = states('{ids["current_all_in_price"]}') | float(none) %}}
+              {{% set grid = {grid_expr} %}}
+              {{% set solar = {solar_expr} %}}
+              {{% set gas = {gas_expr} %}}
+              {{% set load = {load_expr} %}}
+              {{% set electric_eff = {float(electric_efficiency)} %}}
+              {{% set gas_eff = {float(gas_efficiency)} %}}
+              {{% set gas_kwh = {float(gas_kwh)} %}}
+              {{% set measured = [0, -grid] | max if grid is not none else none %}}
+              {{% set fallback = [0, solar] | max if measured is none and solar is not none else none %}}
+              {{% set available = measured if measured is not none else fallback %}}
+              {{% set coverage = ([100, available / load * 100] | min) if available is not none and load else none %}}
+              {{% set electric_cost = price / electric_eff if price is not none and electric_eff > 0 else none %}}
+              {{% set grid_share = ([0, load - available] | max / load) if load and available is not none else 1 %}}
+              {{% set effective_cost = electric_cost * grid_share if electric_cost is not none else none %}}
+              {{% set gas_cost = gas / (gas_kwh * gas_eff) if gas is not none and gas_kwh > 0 and gas_eff > 0 else none %}}
+              {{% set better_time = state_attr('{ids["price_advisor"]}', 'next_better_time') %}}
+              {{% set wait = state_attr('{ids["price_advisor"]}', 'minutes_until_better') %}}
+              {{% if load and measured is not none and measured >= load %}}
+                {{% set status = '🟢 Gebruik nu' %}}
+                {{% set reason = 'De volledige ingestelde belasting kan door gemeten teruglevering worden gedekt.' %}}
+              {{% elif load and measured is not none and measured > 0 %}}
+                {{% set status = '🟢 Gedeeltelijk overschot' %}}
+                {{% set reason = 'Een deel van de belasting kan door gemeten teruglevering worden gedekt.' %}}
+              {{% elif effective_cost is not none and gas_cost is not none and effective_cost <= gas_cost %}}
+                {{% set status = '🟢 Elektrisch gunstig' %}}
+                {{% set reason = 'De ingekochte elektrische energie is in dit model nu voordeliger dan gas.' %}}
+              {{% elif gas_cost is not none and effective_cost is not none %}}
+                {{% set status = '🟠 Gas gunstiger' %}}
+                {{% set reason = 'Gas heeft op dit moment lagere berekende kosten per kWh bruikbare warmte.' %}}
+              {{% elif price is not none %}}
+                {{% set status = '🟡 Prijsadvies beschikbaar' %}}
+                {{% set reason = 'Niet alle optionele Smart Energy-bronnen zijn beschikbaar.' %}}
+              {{% else %}}
+                {{% set status = '⚪ Onvoldoende gegevens' %}}
+                {{% set reason = 'De actuele stroomprijs is niet beschikbaar.' %}}
+              {{% endif %}}
+              ## {{{{ status }}}}
+              **Stroom nu:** {{{{ ('€ %.3f/kWh' | format(price)) if price is not none else 'niet beschikbaar' }}}}  
+              **Elektrisch effectief:** {{{{ ('€ %.3f/kWh' | format(effective_cost)) if effective_cost is not none else 'niet beschikbaar' }}}}  
+              **Gas bruikbare warmte:** {{{{ ('€ %.3f/kWh' | format(gas_cost)) if gas_cost is not none else 'niet beschikbaar' }}}}  
+              **Gemeten overschot:** {{{{ ('%.0f W' | format(measured)) if measured is not none else 'niet beschikbaar' }}}}  
+              **{load_name}:** {{{{ ('%.0f W' | format(load)) if load else 'niet ingesteld' }}}}  
+              **Dekking overschot:** {{{{ ('%.0f%%' | format(coverage)) if coverage is not none else 'niet beschikbaar' }}}}
+
+              **Advies:** {{{{ reason }}}}
+              {{% if measured is none and fallback is not none %}}
+              _Zonneproductie ({{{{ '%.0f W' | format(fallback) }}}}) is alleen fallback-context; dit is geen gemeten netto-overschot._
+              {{% endif %}}
+              {{% if better_time %}}
+              **Volgende duidelijk gunstiger interval:** {{{{ as_timestamp(better_time) | timestamp_custom('%H:%M') }}}}{{% if wait is not none %}} (over {{{{ wait }}}} min){{% endif %}}
+              {{% endif %}}
+              _Kostenmodel: alleen ingekochte energie; gemiste terugleververgoeding is niet meegerekend._
+"""
     price_tiles = ""
     if include_all_in_price:
         price_tiles += f"""
@@ -149,7 +241,7 @@ views:
           - type: heading
             heading: Energieadvies
             icon: mdi:lightning-bolt-circle
-{advisor}{price_tiles}{planner_note}{details}{graph}"""
+{advisor}{price_tiles}{planner_note}{smart_energy}{details}{graph}"""
 
 def generate_automation_yaml(
     automation_type: str,
