@@ -5,6 +5,8 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
+import voluptuous as vol
+
 from .const import (
     CONF_GAS_PRICE_ENTITY,
     CONF_GRID_POWER_ENTITY,
@@ -22,6 +24,8 @@ if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
 
 _LOGGER = logging.getLogger(__name__)
+
+CONFIG_SCHEMA = vol.Schema({})
 
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
