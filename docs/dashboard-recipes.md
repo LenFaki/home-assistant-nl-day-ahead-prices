@@ -30,8 +30,6 @@ Starting with v2.5, **Smart Setup** can optionally be enabled in the EnerPrice o
 
 Smart Setup is optional and remains disabled by default for existing installations. Existing v2.4.x calls keep working. Values explicitly supplied in a service call always take precedence over stored Smart Setup values.
 
-The Smart Energy Advisor is a response action.
-
 The Smart Energy Advisor is a response action. A practical setup uses:
 - an EnerPrice config entry with current all-in prices;
 - a gas-price entity in EUR/m³ (optional);
@@ -63,9 +61,9 @@ Useful response fields include `state`, `recommendation`, `cheapest_now`, `elect
 
 In v2.5, `effective_electric_heat_cost_per_kwh` uses the `purchased_energy_only` model: available surplus is assigned no additional purchase cost and only the remaining grid share is priced at the current all-in tariff. This is **not a complete economic cost model**; possible lost feed-in value/opportunity cost of self-consumed energy is not included.
 
-## 4. Generate an EnerPrice dashboard
+## 4. Generate a Smart Energy dashboard
 
-Instead of writing a dashboard manually, run:
+In v2.5, `generate_dashboard_yaml` with `dashboard_type: energy_advisor` automatically uses Smart Setup from the selected EnerPrice config entry. The generated native Markdown/Sections block shows, when available, the current recommendation, all-in electricity price, effective electric cost, useful gas-heat cost, measured surplus, configured load demand, surplus coverage and the next materially cheaper interval.
 
 ```yaml
 action: nl_day_ahead_prices.generate_dashboard_yaml
@@ -76,9 +74,12 @@ data:
   include_supplier_info: true
   include_best_periods: true
   include_price_advisor: true
+  include_price_chart: false
 ```
 
-Copy the returned YAML into a Home Assistant dashboard. `compact` and `full` are also available.
+With one EnerPrice config entry it is selected automatically. With multiple entries, pass `config_entry_id` so the generator uses the correct entity IDs and Smart Setup. Missing gas, solar or P1 values remain unavailable rather than becoming zero.
+
+Set `include_price_chart: false` for a dashboard using only native Home Assistant cards. Set it to `true` to include the optional ApexCharts price graph. `compact` and `full` remain available for the existing layouts.
 
 ## 5. Safe automation pattern
 
