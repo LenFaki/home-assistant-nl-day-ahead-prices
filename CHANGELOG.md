@@ -1,5 +1,27 @@
 # Changelog
 
+## 2.5.0 - 2026-10-01
+
+### Added
+- Add optional Smart Setup for storing grid/P1 power, solar production, gas price, one flexible load, efficiencies, gas energy content, surplus threshold and advice language.
+- Add a persistent Smart Energy Advisor sensor that combines live Home Assistant inputs with EnerPrice all-in prices and refreshes when configured grid, solar or gas entities change.
+- Add an adaptive Smart Energy dashboard generator that resolves actual Entity Registry IDs and includes only the Smart Setup inputs that are configured.
+- Add Dutch and English Smart Energy dashboard labels, current advice, useful-heat costs and next-better-price timing.
+- Add practical Home Assistant release-validation documentation for Smart Setup, hourly/quarter-hour prices and generated dashboards.
+
+### Improved
+- Reuse stored Smart Setup defaults in the Smart Energy Advisor service while keeping explicit service-call values authoritative.
+- Reload the config entry when Smart Setup is enabled/disabled or its live input entity IDs change, preventing missing advisor entities and stale state listeners.
+- Preserve missing or unavailable live measurements as unknown instead of silently treating them as zero.
+- Expand regression coverage for the Smart Energy dashboard contract, zero-versus-unknown measurements and Smart Setup lifecycle changes.
+
+### Compatibility
+- Smart Setup remains disabled by default for existing installations.
+- EnerPrice remains advisory and does not automatically switch boilers, EV chargers, batteries or other devices.
+- V2.5 supports one flexible load in Smart Setup; device-specific optimization and multi-load orchestration remain outside this release.
+- Existing EnerPrice entities, services, integration domain and v2.4.x Smart Energy Advisor calls remain compatible.
+
+
 ## 2.4.1 - 2026-10-01
 
 ### Improved
