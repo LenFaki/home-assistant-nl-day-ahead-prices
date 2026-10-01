@@ -440,6 +440,49 @@ async def test_options_flow_selector_defaults_and_cache_preview(monkeypatch, mod
 
 
 
+def _load_config_flow_for_test(monkeypatch):
+    """Load config_flow with lightweight Home Assistant and voluptuous doubles."""
+    class BaseFlow:
+        def __init_subclass__(cls, **kwargs):
+            pass
+
+    class Optional:
+        def __init__(self, key, default=None):
+            self.key, self.default = key, default
+
+    modules = {
+        "voluptuous": {
+            "Schema": lambda data: data,
+            "Optional": Optional,
+            "In": lambda data: data,
+            "All": lambda *args: args,
+            "Coerce": lambda value: value,
+            "Range": lambda **kwargs: kwargs,
+        },
+        "homeassistant": {"config_entries": SimpleNamespace(ConfigFlow=BaseFlow, OptionsFlow=BaseFlow)},
+        "homeassistant.const": {"CONF_NAME": "name"},
+        "homeassistant.data_entry_flow": {"FlowResult": dict},
+        "homeassistant.helpers.selector": {
+            "EntitySelector": lambda data: data,
+            "EntitySelectorConfig": dict,
+            "NumberSelector": lambda data: data,
+            "NumberSelectorConfig": dict,
+            "NumberSelectorMode": SimpleNamespace(BOX="box"),
+            "SelectSelector": lambda data: data,
+            "SelectSelectorConfig": dict,
+        },
+    }
+    for name, attrs in modules.items():
+        module = ModuleType(name)
+        module.__dict__.update(attrs)
+        monkeypatch.setitem(sys.modules, name, module)
+    name = "custom_components.nl_day_ahead_prices._smart_flow_test"
+    spec = importlib.util.spec_from_file_location(name, ROOT / "custom_components/nl_day_ahead_prices/config_flow.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 def _smart_setup_flow(module, current=None):
     """Build a lightweight options-flow instance for Smart Setup unit tests."""
     flow = module.NLDayAheadPricesOptionsFlow()
@@ -449,10 +492,9 @@ def _smart_setup_flow(module, current=None):
     return flow
 
 
-def test_smart_setup_validation_requires_positive_load_when_enabled():
-    from custom_components.nl_day_ahead_prices.config_flow import _validate_smart_setup
-
-    errors = _validate_smart_setup({
+def test_smart_setup_validation_requires_positive_load_when_enabled(monkeypatch):
+    module = _load_config_flow_for_test(monkeypatch)
+    errors = module._validate_smart_setup({
         "smart_setup_enabled": True,
         "smart_flexible_load_power_w": 0,
         "smart_electric_efficiency": 1.0,
@@ -463,10 +505,9 @@ def test_smart_setup_validation_requires_positive_load_when_enabled():
     assert errors == {"smart_flexible_load_power_w": "positive_value_required"}
 
 
-def test_smart_setup_validation_accepts_complete_enabled_setup():
-    from custom_components.nl_day_ahead_prices.config_flow import _validate_smart_setup
-
-    assert _validate_smart_setup({
+def test_smart_setup_validation_accepts_complete_enabled_setup(monkeypatch):
+    module = _load_config_flow_for_test(monkeypatch)
+    assert module._validate_smart_setup({
         "smart_setup_enabled": True,
         "smart_flexible_load_power_w": 1500,
         "smart_electric_efficiency": 1.0,
@@ -476,9 +517,8 @@ def test_smart_setup_validation_accepts_complete_enabled_setup():
     }) == {}
 
 
-async def test_smart_setup_disabled_preserves_base_options_and_clears_smart_values():
-    from custom_components.nl_day_ahead_prices import config_flow as module
-
+async def test_smart_setup_disabled_preserves_base_options_and_clears_smart_values(monkeypatch):
+    module = _load_config_flow_for_test(monkeypatch)
     flow = _smart_setup_flow(module, {
         "selected_supplier": "zonneplan",
         "smart_setup_enabled": True,
@@ -495,9 +535,8 @@ async def test_smart_setup_disabled_preserves_base_options_and_clears_smart_valu
     assert "smart_advice_language" not in result["data"]
 
 
-async def test_smart_setup_enabled_saves_entities_load_efficiencies_and_language():
-    from custom_components.nl_day_ahead_prices import config_flow as module
-
+async def test_smart_setup_enabled_saves_entities_load_efficiencies_and_language(monkeypatch):
+    module = _load_config_flow_for_test(monkeypatch)
     flow = _smart_setup_flow(module, {"selected_supplier": "zonneplan"})
     user_input = {
         "smart_setup_enabled": True,
@@ -519,9 +558,8 @@ async def test_smart_setup_enabled_saves_entities_load_efficiencies_and_language
         assert result["data"][key] == value
 
 
-async def test_custom_supplier_smart_setup_preserves_custom_fields():
-    from custom_components.nl_day_ahead_prices import config_flow as module
-
+async def test_custom_supplier_smart_setup_preserves_custom_fields(monkeypatch):
+    module = _load_config_flow_for_test(monkeypatch)
     flow = _smart_setup_flow(module, {
         "selected_supplier": "custom",
         "custom_supplier_name": "Mijn leverancier",
