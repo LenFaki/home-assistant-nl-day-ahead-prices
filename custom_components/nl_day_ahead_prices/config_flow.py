@@ -212,19 +212,82 @@ class NLDayAheadPricesOptionsFlow(config_entries.OptionsFlow):
     def _smart_setup_schema(self, data: dict[str, Any]) -> vol.Schema:
         """Return optional Smart Energy setup schema."""
         power_entity = EntitySelector(EntitySelectorConfig(domain="sensor", device_class="power"))
-        return vol.Schema({
-            vol.Optional(CONF_SMART_SETUP_ENABLED, default=data.get(CONF_SMART_SETUP_ENABLED, DEFAULT_SMART_SETUP_ENABLED)): bool,
-            vol.Optional(CONF_GRID_POWER_ENTITY, default=data.get(CONF_GRID_POWER_ENTITY)): power_entity,
-            vol.Optional(CONF_SOLAR_POWER_ENTITY, default=data.get(CONF_SOLAR_POWER_ENTITY)): power_entity,
-            vol.Optional(CONF_GAS_PRICE_ENTITY, default=data.get(CONF_GAS_PRICE_ENTITY)): EntitySelector(EntitySelectorConfig(domain="sensor")),
-            vol.Optional(CONF_FLEXIBLE_LOAD_NAME, default=data.get(CONF_FLEXIBLE_LOAD_NAME, DEFAULT_FLEXIBLE_LOAD_NAME)): str,
-            vol.Optional(CONF_FLEXIBLE_LOAD_POWER_W, default=data.get(CONF_FLEXIBLE_LOAD_POWER_W)): NumberSelector(NumberSelectorConfig(min=1, max=50000, step=1, unit_of_measurement="W", mode=NumberSelectorMode.BOX)),
-            vol.Optional(CONF_ELECTRIC_EFFICIENCY, default=data.get(CONF_ELECTRIC_EFFICIENCY, DEFAULT_ELECTRIC_EFFICIENCY)): NumberSelector(NumberSelectorConfig(min=0.01, max=5, step=0.01, mode=NumberSelectorMode.BOX)),
-            vol.Optional(CONF_GAS_EFFICIENCY, default=data.get(CONF_GAS_EFFICIENCY, DEFAULT_GAS_EFFICIENCY)): NumberSelector(NumberSelectorConfig(min=0.01, max=1, step=0.01, mode=NumberSelectorMode.BOX)),
-            vol.Optional(CONF_GAS_KWH_PER_M3, default=data.get(CONF_GAS_KWH_PER_M3, DEFAULT_GAS_KWH_PER_M3)): NumberSelector(NumberSelectorConfig(min=0.01, max=20, step=0.001, unit_of_measurement="kWh/m³", mode=NumberSelectorMode.BOX)),
-            vol.Optional(CONF_SOLAR_SURPLUS_THRESHOLD_W, default=data.get(CONF_SOLAR_SURPLUS_THRESHOLD_W, DEFAULT_SOLAR_SURPLUS_THRESHOLD_W)): NumberSelector(NumberSelectorConfig(min=0, max=50000, step=1, unit_of_measurement="W", mode=NumberSelectorMode.BOX)),
-            vol.Optional(CONF_ADVICE_LANGUAGE, default=data.get(CONF_ADVICE_LANGUAGE, DEFAULT_ADVICE_LANGUAGE)): SelectSelector(SelectSelectorConfig(options=["en", "nl"])),
-        })
+        schema: dict[Any, Any] = {
+            vol.Optional(
+                CONF_SMART_SETUP_ENABLED,
+                default=data.get(CONF_SMART_SETUP_ENABLED, DEFAULT_SMART_SETUP_ENABLED),
+            ): bool,
+            vol.Optional(
+                CONF_FLEXIBLE_LOAD_NAME,
+                default=data.get(CONF_FLEXIBLE_LOAD_NAME, DEFAULT_FLEXIBLE_LOAD_NAME),
+            ): str,
+            vol.Optional(
+                CONF_ELECTRIC_EFFICIENCY,
+                default=data.get(CONF_ELECTRIC_EFFICIENCY, DEFAULT_ELECTRIC_EFFICIENCY),
+            ): NumberSelector(
+                NumberSelectorConfig(min=0.01, max=5, step=0.01, mode=NumberSelectorMode.BOX)
+            ),
+            vol.Optional(
+                CONF_GAS_EFFICIENCY,
+                default=data.get(CONF_GAS_EFFICIENCY, DEFAULT_GAS_EFFICIENCY),
+            ): NumberSelector(
+                NumberSelectorConfig(min=0.01, max=1, step=0.01, mode=NumberSelectorMode.BOX)
+            ),
+            vol.Optional(
+                CONF_GAS_KWH_PER_M3,
+                default=data.get(CONF_GAS_KWH_PER_M3, DEFAULT_GAS_KWH_PER_M3),
+            ): NumberSelector(
+                NumberSelectorConfig(
+                    min=0.01,
+                    max=20,
+                    step=0.001,
+                    unit_of_measurement="kWh/m³",
+                    mode=NumberSelectorMode.BOX,
+                )
+            ),
+            vol.Optional(
+                CONF_SOLAR_SURPLUS_THRESHOLD_W,
+                default=data.get(CONF_SOLAR_SURPLUS_THRESHOLD_W, DEFAULT_SOLAR_SURPLUS_THRESHOLD_W),
+            ): NumberSelector(
+                NumberSelectorConfig(
+                    min=0,
+                    max=50000,
+                    step=1,
+                    unit_of_measurement="W",
+                    mode=NumberSelectorMode.BOX,
+                )
+            ),
+            vol.Optional(
+                CONF_ADVICE_LANGUAGE,
+                default=data.get(CONF_ADVICE_LANGUAGE, DEFAULT_ADVICE_LANGUAGE),
+            ): SelectSelector(SelectSelectorConfig(options=["en", "nl"])),
+        }
+
+        optional_selectors = (
+            (CONF_GRID_POWER_ENTITY, power_entity),
+            (CONF_SOLAR_POWER_ENTITY, power_entity),
+            (
+                CONF_GAS_PRICE_ENTITY,
+                EntitySelector(EntitySelectorConfig(domain="sensor")),
+            ),
+            (
+                CONF_FLEXIBLE_LOAD_POWER_W,
+                NumberSelector(
+                    NumberSelectorConfig(
+                        min=1,
+                        max=50000,
+                        step=1,
+                        unit_of_measurement="W",
+                        mode=NumberSelectorMode.BOX,
+                    )
+                ),
+            ),
+        )
+        for key, selector in optional_selectors:
+            marker = vol.Optional(key, default=data[key]) if key in data else vol.Optional(key)
+            schema[marker] = selector
+
+        return vol.Schema(schema)
 
     def _current_options(self) -> dict[str, Any]:
         """Return merged config entry data and options."""
