@@ -598,6 +598,11 @@ def _load_services_v2_for_smart_defaults(monkeypatch):
         },
         "homeassistant.util": {"dt": SimpleNamespace(now=lambda: NOW)},
     }
+    sensor_stub = ModuleType("custom_components.nl_day_ahead_prices.sensor")
+    sensor_stub._energy_tax = Mock()
+    sensor_stub._selected_supplier_profile = Mock()
+    sensor_stub._vat = Mock()
+    monkeypatch.setitem(sys.modules, "custom_components.nl_day_ahead_prices.sensor", sensor_stub)
     for name, attrs in modules.items():
         module = ModuleType(name)
         module.__dict__.update(attrs)
