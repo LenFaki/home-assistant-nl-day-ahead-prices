@@ -287,3 +287,16 @@ def test_unknown_inputs_are_distinct_from_real_zero_values():
     assert zero_grid["surplus_source"] == "measured_grid_export"
     assert zero_grid["measured_solar_surplus_w"] == 0.0
 
+def test_negligible_export_is_not_partial_surplus():
+    result = build_smart_energy_advice(
+        electricity_price=0.30,
+        gas_price_per_m3=1.50,
+        grid_power_w=-5,
+        flexible_load_power_w=2800,
+        solar_surplus_threshold_w=500,
+        now=NOW,
+    )
+
+    assert result["measured_solar_surplus_w"] == 5
+    assert result["partial_surplus"] is False
+    assert result["surplus_coverage_percent"] == 0.2

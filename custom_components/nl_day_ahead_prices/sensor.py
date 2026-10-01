@@ -759,7 +759,8 @@ class NLSmartEnergyAdvisorSensor(CoordinatorEntity[NLDayAheadPricesCoordinator],
             self.async_on_remove(async_track_state_change_event(self.hass, entity_ids, self._async_input_changed))
 
     def _async_input_changed(self, event: Any) -> None:
-        self.async_write_ha_state()
+        """Refresh advice on the Home Assistant event loop."""
+        self.hass.loop.call_soon_threadsafe(self.async_write_ha_state)
 
     def _advice(self) -> dict[str, Any]:
         data = self.coordinator.data

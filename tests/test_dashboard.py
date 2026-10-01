@@ -94,3 +94,37 @@ def test_dashboard_prominently_renders_smart_energy_advisor() -> None:
     assert "effective_electric_heat_cost_per_kwh" in yaml
     assert "gas_heat_cost_per_kwh" in yaml
     assert "next_better_time" in yaml
+
+def test_dashboard_does_not_guess_missing_optional_registry_entities() -> None:
+    yaml = generate_dashboard_yaml(
+        dashboard_type="energy_advisor",
+        language="nl",
+        entity_ids={
+            "current_all_in_price": "sensor.real_all_in",
+            "current_market_price": "sensor.real_market",
+            "price_advisor": "sensor.real_advisor",
+            "price_score": "sensor.real_score",
+            "tomorrow_prices_available": "binary_sensor.real_tomorrow",
+            "selected_supplier": "sensor.real_supplier",
+            "current_provider": "sensor.real_provider",
+        },
+        smart_setup={"enabled": False},
+    )
+
+    assert "nl_day_ahead_prices_best_price_period" not in yaml
+    assert "nl_day_ahead_prices_next_best_price_period_start" not in yaml
+
+
+def test_dashboard_hides_missing_advisor_copy_and_uses_clear_device_label() -> None:
+    yaml = generate_dashboard_yaml(
+        language="nl",
+        smart_setup={
+            "enabled": True,
+            "flexible_load_name": "Nymo WaterAccu",
+            "flexible_load_power_w": 2800,
+        },
+    )
+
+    assert "summary or state_attr" in yaml
+    assert "Flexibel apparaat:** Nymo WaterAccu · 2800 W" in yaml
+    assert "Flexibele verbruiker" not in yaml
