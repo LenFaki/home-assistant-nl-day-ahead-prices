@@ -4,7 +4,6 @@ from types import ModuleType, SimpleNamespace
 import pytest
 
 from custom_components.nl_day_ahead_prices import async_setup
-from custom_components.nl_day_ahead_prices.const import DOMAIN
 
 
 class FakeServices:
