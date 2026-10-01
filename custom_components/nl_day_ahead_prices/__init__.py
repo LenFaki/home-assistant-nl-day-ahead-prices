@@ -75,20 +75,7 @@ async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> Non
     coordinator = hass.data[DOMAIN][entry.entry_id]
     previous = coordinator.configured_options
     current = {**entry.data, **entry.options}
-    smart_listener_keys = (
-        CONF_SMART_SETUP_ENABLED,
-        CONF_GRID_POWER_ENTITY,
-        CONF_SOLAR_POWER_ENTITY,
-        CONF_GAS_PRICE_ENTITY,
-    )
-    smart_listener_changed = any(previous.get(key) != current.get(key) for key in smart_listener_keys)
-    if (
-        not smart_listener_changed
-        and all(
-            previous.get(key, default) == current.get(key, default)
-            for key, default in MARKET_PROVIDER_DEFAULTS.items()
-        )
-    ):
+    if not _requires_reload(previous, current):
         coordinator.configured_options = current
         for key, default in RUNTIME_DEFAULTS.items():
             if previous.get(key, default) != current.get(key, default):
@@ -106,3 +93,19 @@ def _platforms() -> list:
     from homeassistant.const import Platform
 
     return [Platform.SENSOR, Platform.BINARY_SENSOR, Platform.NUMBER, Platform.SWITCH]
+
+
+def _requires_reload(previous: dict, current: dict) -> bool:
+    """Return whether an option change requires rebuilding platforms/listeners."""
+    if any(
+        previous.get(key, default) != current.get(key, default)
+        for key, default in MARKET_PROVIDER_DEFAULTS.items()
+    ):
+        return True
+    smart_listener_keys = (
+        CONF_SMART_SETUP_ENABLED,
+        CONF_GRID_POWER_ENTITY,
+        CONF_SOLAR_POWER_ENTITY,
+        CONF_GAS_PRICE_ENTITY,
+    )
+    return any(previous.get(key) != current.get(key) for key in smart_listener_keys)
