@@ -30,20 +30,31 @@ def build_smart_energy_advice(
         raise ValueError("Flexible load power must be positive")
 
     is_nl = language.lower().startswith("nl")
-    solar = solar_power_w if solar_power_w is not None else 0.0
-    grid = grid_power_w if grid_power_w is not None else 0.0
-    solar_production = solar > 0
+    solar_production = solar_power_w is not None and solar_power_w > 0
     # Positive grid power means import. When grid data is available, actual export is
     # the most reliable definition of surplus. Solar production alone is used only
     # when no grid meter was supplied.
-    measured_surplus = max(0.0, -grid) if grid_power_w is not None else None
-    available_surplus = measured_surplus if measured_surplus is not None else solar
+    measured_surplus = max(0.0, -grid_power_w) if grid_power_w is not None else None
+    if measured_surplus is not None:
+        available_surplus = measured_surplus
+        surplus_source = "measured_grid_export"
+    elif solar_power_w is not None:
+        available_surplus = max(0.0, solar_power_w)
+        surplus_source = "solar_production_fallback"
+    else:
+        available_surplus = None
+        surplus_source = "unknown"
     required_surplus = flexible_load_power_w if flexible_load_power_w is not None else solar_surplus_threshold_w
-    solar_surplus = available_surplus >= required_surplus
-    partial_surplus = flexible_load_power_w is not None and 0 < available_surplus < flexible_load_power_w
+    solar_surplus = available_surplus is not None and available_surplus >= required_surplus
+    partial_surplus = (
+        flexible_load_power_w is not None
+        and available_surplus is not None
+        and 0 < available_surplus < flexible_load_power_w
+    )
     surplus_coverage = (
         min(100.0, available_surplus / flexible_load_power_w * 100)
-        if flexible_load_power_w is not None else None
+        if flexible_load_power_w is not None and available_surplus is not None
+        else None
     )
 
     electric_heat_cost = (
@@ -55,7 +66,8 @@ def build_smart_energy_advice(
     # surplus has no additional purchase cost.
     grid_share = (
         max(0.0, flexible_load_power_w - available_surplus) / flexible_load_power_w
-        if flexible_load_power_w is not None else 1.0
+        if flexible_load_power_w is not None and available_surplus is not None
+        else 1.0
     )
     effective_electric_heat_cost = (
         electric_heat_cost * grid_share if electric_heat_cost is not None else None
@@ -88,9 +100,9 @@ def build_smart_energy_advice(
             state = "cheap_grid"
             if partial_surplus:
                 recommendation = (
-                    f"Gebruik het gedeeltelijke energieoverschot ({surplus_coverage:.0f}%) en vul de rest aan met netstroom; dit is nu goedkoper dan gas."
+                    f"Gebruik het gedeeltelijke energieoverschot ({surplus_coverage:.0f}%) en vul de rest aan met netstroom; de ingekochte energie is in dit model nu goedkoper dan gas."
                     if is_nl else
-                    f"Use the partial energy surplus ({surplus_coverage:.0f}%) and supply the remainder from the grid; this is currently cheaper than gas."
+                    f"Use the partial energy surplus ({surplus_coverage:.0f}%) and supply the remainder from the grid; purchased energy is currently cheaper than gas in this model."
                 )
             else:
                 recommendation = (
@@ -138,10 +150,12 @@ def build_smart_energy_advice(
             else None
         ),
         "cost_difference_percent": round(savings, 1) if savings is not None else None,
+        "cost_model": "purchased_energy_only",
         "solar_power_w": solar_power_w,
         "grid_power_w": grid_power_w,
         "solar_production": solar_production,
         "measured_solar_surplus_w": _round(measured_surplus),
+        "surplus_source": surplus_source,
         "solar_surplus": solar_surplus,
         "partial_surplus": partial_surplus,
         "surplus_coverage_percent": round(surplus_coverage, 1) if surplus_coverage is not None else None,
