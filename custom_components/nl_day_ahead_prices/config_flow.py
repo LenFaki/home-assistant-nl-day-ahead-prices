@@ -189,14 +189,9 @@ class NLDayAheadPricesOptionsFlow(config_entries.OptionsFlow):
         if user_input is not None:
             enabled = bool(user_input.get(CONF_SMART_SETUP_ENABLED, DEFAULT_SMART_SETUP_ENABLED))
             if not enabled:
-                smart_keys = {
-                    CONF_GRID_POWER_ENTITY, CONF_SOLAR_POWER_ENTITY, CONF_GAS_PRICE_ENTITY,
-                    CONF_FLEXIBLE_LOAD_NAME, CONF_FLEXIBLE_LOAD_POWER_W, CONF_ELECTRIC_EFFICIENCY,
-                    CONF_GAS_EFFICIENCY, CONF_GAS_KWH_PER_M3, CONF_SOLAR_SURPLUS_THRESHOLD_W,
-                    CONF_ADVICE_LANGUAGE,
-                }
-                result = {key: value for key, value in data.items() if key not in smart_keys}
-                result[CONF_SMART_SETUP_ENABLED] = False
+                # Disabling Smart Setup must not erase the user's device selections,
+                # efficiencies or language. This makes the toggle reversible.
+                result = {**data, **user_input, CONF_SMART_SETUP_ENABLED: False}
                 return self.async_create_entry(title="", data=result)
             errors = _validate_smart_setup(user_input)
             if errors:
