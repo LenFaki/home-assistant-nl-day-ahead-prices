@@ -386,3 +386,11 @@ Issues en pull requests zijn welkom via GitHub.
 ## Licentie
 
 Zie [LICENSE](LICENSE) voor de licentievoorwaarden.
+
+## V2.5 Smart Setup snel controleren
+
+Na het inschakelen van **Smart Setup** maakt EnerPrice een blijvende **Smart Energy Advisor**-sensor aan. Deze ververst bij EnerPrice-prijsupdates en wanneer de ingestelde P1/netvermogen-, zonneproductie- of gasprijssensor verandert. Het gegenereerde Smart Energy-dashboard gebruikt de werkelijke entity-ID uit het Entity Registry.
+
+Controleer vóór gebruik van het advies de invoer in Home Assistant: netvermogen in W met positief = afname en negatief = teruglevering, zonneproductie in W en gasprijs in EUR/m³. Ontbrekende of niet-beschikbare waarden blijven onbekend en worden niet als nul behandeld. V2.5 ondersteunt in Smart Setup één flexibele verbruiker en blijft uitsluitend adviserend; EnerPrice schakelt de verbruiker niet zelf.
+
+Zie [Dashboardvoorbeelden](docs/dashboard-recipes.nl.md) voor een praktische controlevolgorde en dashboardvoorbeelden.
