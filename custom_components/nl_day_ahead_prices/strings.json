@@ -34,7 +34,7 @@
           "supplier_markup_excl_vat": "Supplier markup excluding VAT",
           "vat": "VAT"
         },
-        "options": {
+        "menu_options": {
           "price_resolution": {
             "auto": "Automatic based on supplier",
             "hourly": "Hourly prices",
