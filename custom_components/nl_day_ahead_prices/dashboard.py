@@ -11,6 +11,7 @@ def generate_dashboard_yaml(
     include_supplier_info: bool = True,
     include_best_periods: bool = True,
     include_price_advisor: bool = True,
+    include_price_chart: bool = True,
     include_ev_planner: bool = False,
     include_battery_strategy: bool = False,
     theme: str = "auto",
@@ -198,7 +199,7 @@ def generate_dashboard_yaml(
 """
 
     graph = ""
-    if dashboard_type in {"full", "energy_advisor"}:
+    if include_price_chart and dashboard_type in {"full", "energy_advisor"}:
         graph = f"""
       - type: grid
         cards:
