@@ -304,6 +304,11 @@ def test_translations_and_version():
             "remote", "cached_remote", "bundled",
         }
     assert json.loads((base / "manifest.json").read_text())["version"] == "2.4.1"
+    for path in (base / "strings.json", base / "translations/en.json", base / "translations/nl.json"):
+        content = json.loads(path.read_text())
+        assert "smart_setup" in content["options"]["step"]
+        assert "smart_setup_enabled" in content["options"]["step"]["smart_setup"]["data"]
+        assert "smart_flexible_load_power_w" in content["options"]["step"]["smart_setup"]["data"]
 
 
 async def test_shared_manager_factory_loads_cache_once_without_network(monkeypatch):
