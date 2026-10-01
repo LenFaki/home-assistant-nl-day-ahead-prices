@@ -191,8 +191,7 @@ class NLDayAheadPricesOptionsFlow(config_entries.OptionsFlow):
             if not enabled:
                 # Disabling Smart Setup must not erase the user's device selections,
                 # efficiencies or language. This makes the toggle reversible.
-                result = {**data, **user_input, CONF_SMART_SETUP_ENABLED: False}
-                return self.async_create_entry(title="", data=result)
+                return self.async_create_entry(\n                    title="", data=_disabled_smart_setup_options(data, user_input)\n                )
             errors = _validate_smart_setup(user_input)
             if errors:
                 return self.async_show_form(
@@ -426,3 +425,8 @@ def _validate_smart_setup(user_input: dict[str, Any]) -> dict[str, str]:
     if threshold is None or threshold < 0:
         errors[CONF_SOLAR_SURPLUS_THRESHOLD_W] = "negative_value"
     return errors
+
+
+def _disabled_smart_setup_options(data: dict[str, Any], user_input: dict[str, Any]) -> dict[str, Any]:
+    """Disable Smart Setup while preserving the user's stored configuration."""
+    return {**data, **user_input, CONF_SMART_SETUP_ENABLED: False}
