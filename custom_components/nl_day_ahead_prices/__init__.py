@@ -5,8 +5,6 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from homeassistant.helpers import config_validation as cv
-
 from .const import (
     CONF_GAS_PRICE_ENTITY,
     CONF_GRID_POWER_ENTITY,
@@ -25,7 +23,7 @@ if TYPE_CHECKING:
 
 _LOGGER = logging.getLogger(__name__)
 
-CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
+CONFIG_SCHEMA = {DOMAIN: {}}
 
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
