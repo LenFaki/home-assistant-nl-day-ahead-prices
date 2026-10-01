@@ -51,6 +51,13 @@ def test_v2_coordinator_selection_handles_zero_one_and_multiple_entries(monkeypa
     vol.Coerce = lambda value: value
     monkeypatch.setitem(sys.modules, "voluptuous", vol)
 
+    homeassistant = ModuleType("homeassistant")
+    helpers = ModuleType("homeassistant.helpers")
+    util = ModuleType("homeassistant.util")
+    monkeypatch.setitem(sys.modules, "homeassistant", homeassistant)
+    monkeypatch.setitem(sys.modules, "homeassistant.helpers", helpers)
+    monkeypatch.setitem(sys.modules, "homeassistant.util", util)
+
     ha_core = ModuleType("homeassistant.core")
     ha_core.HomeAssistant = object
     ha_core.ServiceCall = object
