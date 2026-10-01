@@ -23,7 +23,6 @@ if TYPE_CHECKING:
 
 _LOGGER = logging.getLogger(__name__)
 
-CONFIG_SCHEMA = {DOMAIN: {}}
 
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
