@@ -358,6 +358,10 @@ Dezelfde structuur werkt voor uur- en kwartierprijzen; gebruik `prices_today` vo
 
 EnerPrice behoudt het belangrijke ApexCharts-formaat waarbij `entity.attributes.prices` een array van `{time, price}` blijft. Het domein verandert ten opzichte van hass-entso-e naar `nl_day_ahead_prices`, Home Assistant maakt nieuwe entity-ID's aan, prijzen worden genormaliseerd naar EUR/kWh en ENTSO-E is alleen een optionele fallback. Werk bestaande automations en dashboards bij naar de nieuwe EnerPrice entity-ID's.
 
+## Snelstart: dashboardvoorbeelden
+
+Voor direct bruikbare Home Assistant-kaarten, Smart Energy Advisor-voorbeelden, load-aware tapwateradvies en een veilige inrichtingschecklist: zie [Dashboardvoorbeelden](docs/dashboard-recipes.nl.md). Deze voorbeelden vormen tegelijk de bouwstenen voor de geplande begeleide onboarding-wizard.
+
 ## Privacy en werking
 
 EnerPrice heeft geen cloudaccount nodig voor de integratie zelf. Marktprijzen
