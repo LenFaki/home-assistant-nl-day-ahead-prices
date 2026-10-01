@@ -517,7 +517,7 @@ def test_smart_setup_validation_accepts_complete_enabled_setup(monkeypatch):
     }) == {}
 
 
-async def test_smart_setup_disabled_preserves_base_options_and_clears_smart_values(monkeypatch):
+async def test_smart_setup_disabled_preserves_base_options_and_smart_values(monkeypatch):
     module = _load_config_flow_for_test(monkeypatch)
     flow = _smart_setup_flow(module, {
         "selected_supplier": "zonneplan",
@@ -530,9 +530,9 @@ async def test_smart_setup_disabled_preserves_base_options_and_clears_smart_valu
     assert result["type"] == "create_entry"
     assert result["data"]["selected_supplier"] == "zonneplan"
     assert result["data"]["smart_setup_enabled"] is False
-    assert "smart_grid_power_entity" not in result["data"]
-    assert "smart_flexible_load_power_w" not in result["data"]
-    assert "smart_advice_language" not in result["data"]
+    assert result["data"]["smart_grid_power_entity"] == "sensor.old_grid"
+    assert result["data"]["smart_flexible_load_power_w"] == 1500
+    assert result["data"]["smart_advice_language"] == "nl"
 
 
 async def test_smart_setup_enabled_saves_entities_load_efficiencies_and_language(monkeypatch):
