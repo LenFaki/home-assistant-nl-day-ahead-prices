@@ -891,15 +891,22 @@ class NLDayAheadPriceSensor(CoordinatorEntity[NLDayAheadPricesCoordinator], Sens
         supplier_profile = _selected_supplier_profile(self.entry)
         all_in_entries = _cached_all_in_entries(self.coordinator, data, self.entry)
         today_count = len(data.result.prices_today)
-        all_in_attributes = [entry.as_attribute() for entry in all_in_entries]
+        shared_price_attributes = _cached_value(
+            self.coordinator,
+            "shared_price_attributes",
+            lambda: {
+                "prices": [entry.as_attribute() for entry in data.result.prices],
+                "all_in_prices": [entry.as_attribute() for entry in all_in_entries],
+                "prices_today": [entry.as_attribute() for entry in data.result.prices_today],
+                "prices_tomorrow": [entry.as_attribute() for entry in data.result.prices_tomorrow],
+                "raw_prices": [entry.as_attribute() for entry in data.result.raw_prices],
+                "raw_prices_today": [entry.as_attribute() for entry in data.result.source_prices_today],
+                "raw_prices_tomorrow": [entry.as_attribute() for entry in data.result.source_prices_tomorrow],
+            },
+        )
+        all_in_attributes = shared_price_attributes["all_in_prices"]
         base = {
-            "prices": [entry.as_attribute() for entry in data.result.prices],
-            "all_in_prices": all_in_attributes,
-            "prices_today": [entry.as_attribute() for entry in data.result.prices_today],
-            "prices_tomorrow": [entry.as_attribute() for entry in data.result.prices_tomorrow],
-            "raw_prices": [entry.as_attribute() for entry in data.result.raw_prices],
-            "raw_prices_today": [entry.as_attribute() for entry in data.result.source_prices_today],
-            "raw_prices_tomorrow": [entry.as_attribute() for entry in data.result.source_prices_tomorrow],
+            **shared_price_attributes,
             "all_in_prices_today": all_in_attributes[:today_count],
             "all_in_prices_tomorrow": all_in_attributes[today_count:],
             "price_resolution": data.result.effective_price_resolution,
