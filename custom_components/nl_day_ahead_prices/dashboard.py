@@ -44,7 +44,8 @@ def generate_dashboard_yaml(
             "best": "Goedkoop prijsblok actief", "next_best": "Volgende goedkope periode",
             "supplier": "Leverancier", "provider": "Prijsbron", "chart": "Prijsverloop",
             "smart": "Smart Energy", "grid": "Netvermogen", "solar": "Zonneproductie",
-            "gas": "Gasprijs", "load": "Flexibele verbruiker",
+            "gas": "Gasprijs", "load": "Flexibele verbruiker", "now": "Nu",
+            "next_better": "Volgende gunstiger prijs", "score_word": "score",
         },
         "en": {
             "view": "Energy advice", "heading": "Energy advice", "advisor": "EnerPrice Advisor",
@@ -53,7 +54,8 @@ def generate_dashboard_yaml(
             "best": "Cheap price block active", "next_best": "Next cheap period",
             "supplier": "Supplier", "provider": "Price source", "chart": "Price trend",
             "smart": "Smart Energy", "grid": "Grid power", "solar": "Solar production",
-            "gas": "Gas price", "load": "Flexible load",
+            "gas": "Gas price", "load": "Flexible load", "now": "Now",
+            "next_better": "Next better price", "score_word": "score",
         },
     }[lang]
 
@@ -68,14 +70,14 @@ def generate_dashboard_yaml(
               {{% set title = state_attr('{ids["price_advisor"]}', 'title') | default('EnerPrice', true) %}}
               {{% set icon = {{'excellent':'🟢','good':'🟢','neutral':'🟡','avoid':'🟠','critical':'🔴'}}.get(a, '⚪') %}}
               # {{{{ icon }}}} {{{{ title }}}}
-              **{{{{ states('{ids["current_all_in_price"]}') }}}} €/kWh** · score {{{{ states('{ids["price_score"]}') }}}}/100
+              **{{{{ states('{ids["current_all_in_price"]}') }}}} €/kWh** · {labels["score_word"]} {{{{ states('{ids["price_score"]}') }}}}/100
 
               {{{{ summary | default(state_attr('{ids["price_advisor"]}', 'recommendation'), true) }}}}
 
               {{% set better_time = state_attr('{ids["price_advisor"]}', 'next_better_time') %}}
               {{% set better_price = state_attr('{ids["price_advisor"]}', 'next_better_price') %}}
               {{% if better_time and better_price is not none %}}
-              **Volgende gunstiger prijs:** {{{{ as_timestamp(better_time) | timestamp_custom('%H:%M') }}}} · {{{{ better_price | round(3) }}}} €/kWh
+              **{labels["next_better"]}:** {{{{ as_timestamp(better_time) | timestamp_custom('%H:%M') }}}} · {{{{ better_price | round(3) }}}} €/kWh
               {{% endif %}}
           - type: tile
             entity: {ids["price_advisor"]}
@@ -177,7 +179,7 @@ def generate_dashboard_yaml(
               start: day
             now:
               show: true
-              label: Nu
+              label: {labels["now"]}
             series:
               - entity: {ids["current_all_in_price"]}
                 name: All-in
