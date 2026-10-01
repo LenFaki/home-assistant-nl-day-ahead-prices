@@ -684,7 +684,7 @@ def test_unavailable_smart_setup_sensor_is_none_not_zero(monkeypatch):
 
 
 def test_explicit_smart_service_values_override_stored_defaults(monkeypatch):
-    module = _load_services_v2_for_smart_defaults(monkeypatch)
+    _load_services_v2_for_smart_defaults(monkeypatch)
     stored = {
         "grid_power_entity": "sensor.stored_grid",
         "electric_efficiency": 0.95,
